@@ -1,0 +1,47 @@
+name: OScar
+
+options:
+  bundleIdPrefix: com.oscarapp
+  deploymentTarget:
+    macOS: "13.0"
+  xcodeVersion: "16"
+  createIntermediateGroups: true
+
+settings:
+  SWIFT_VERSION: "5.9"
+  MACOSX_DEPLOYMENT_TARGET: "13.0"
+
+targets:
+  OScar:
+    type: application
+    platform: macOS
+    deploymentTarget: "13.0"
+
+    info:
+      path: Sources/OScar/Resources/Info.plist
+
+    sources:
+      - path: Sources/OScar
+        excludes:
+          - Resources/Info.plist
+
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.oscarapp.oscar
+      PRODUCT_NAME: OScar
+      INFOPLIST_FILE: Sources/OScar/Resources/Info.plist
+      CODE_SIGN_STYLE: Automatic
+      CODE_SIGN_IDENTITY: "-"
+      ENABLE_HARDENED_RUNTIME: NO
+      # Required for AppIntents metadata extraction
+      APP_INTENTS_DEPLOYMENT_POSTPROCESSING: YES
+      SWIFT_EMIT_LOC_STRINGS: YES
+
+schemes:
+  OScar:
+    build:
+      targets:
+        OScar: all
+    run:
+      config: Debug
+    archive:
+      config: Release

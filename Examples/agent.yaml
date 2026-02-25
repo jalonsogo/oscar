@@ -1,0 +1,13 @@
+version: 1
+
+agents:
+  root:
+    model: anthropic/claude-opus-4-6
+    description: "OScar — your OS-level cognitive agent"
+    instruction: |
+      You are OScar, an intelligent assistant integrated into the macOS menu bar.
+      You have access to shell commands and the filesystem to help the user
+      accomplish real tasks on their machine.
+    toolsets:
+      - type: shell
+      - type: filesystem

@@ -1,0 +1,135 @@
+import AppKit
+import SwiftUI
+
+/// Borderless NSWindow that can still become key (required for text input).
+private final class KeyableWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
+/// Opens and tracks conversation + quick-entry windows using AppKit directly.
+/// This avoids SwiftUI's WindowGroup which auto-opens on launch.
+@MainActor
+final class WindowManager {
+    private var conversationWindows: [String: NSWindow] = [:]
+    private var quickEntryWindow: NSWindow?   // Strong ref — prevents autorelease double-free
+    private weak var state: AppState?
+
+    func setup(state: AppState) {
+        self.state = state
+        state.openWindowAction = { [weak self] payload in
+            self?.open(payload: payload)
+        }
+        NotificationCenter.default.addObserver(
+            forName: .oscOpenQuickEntry,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.openQuickEntry() }
+        }
+    }
+
+    // MARK: - Open
+
+    func open(payload: String) {
+        let parts = payload.split(separator: "|", maxSplits: 1)
+        let sessionId = String(parts[0])
+        let query = parts.count > 1 ? String(parts[1]) : nil
+        openConversation(sessionId: sessionId, initialQuery: query)
+        // Defer QuickEntry close to the next main-actor turn so that
+        // create() has fully returned before the window (and its SwiftUI
+        // hierarchy) is torn down — prevents an autorelease double-free.
+        Task { @MainActor [weak self] in self?.closeQuickEntry() }
+    }
+
+    private func closeQuickEntry() {
+        quickEntryWindow?.close()
+        quickEntryWindow = nil
+    }
+
+    func openConversation(sessionId: String, initialQuery: String? = nil) {
+        // Bring existing window to front if already open
+        if let existing = conversationWindows[sessionId] {
+            bringToFront(existing)
+            return
+        }
+
+        guard let state else { return }
+
+        let view = ConversationView(sessionId: sessionId, initialQuery: initialQuery)
+            .environmentObject(state)
+
+        let window = makeWindow(title: "OScar", size: NSSize(width: 760, height: 600))
+        window.contentViewController = NSHostingController(rootView: view)
+        window.title = "OScar"
+
+        conversationWindows[sessionId] = window
+        bringToFront(window)
+
+        // Remove from tracking when closed; revert to accessory if no windows remain
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.conversationWindows.removeValue(forKey: sessionId)
+            }
+        }
+    }
+
+    private func bringToFront(_ window: NSWindow) {
+        window.orderFrontRegardless()
+        window.makeKey()
+    }
+
+    func openQuickEntry(prefillQuery: String = "") {
+        guard let state else { return }
+
+        // Close any existing quick-entry window before creating a new one.
+        quickEntryWindow?.close()
+        quickEntryWindow = nil
+
+        let window = KeyableWindow(
+            contentRect: NSRect(origin: .zero, size: NSSize(width: 580, height: 100)),
+            styleMask: [.borderless, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+
+        let view = QuickEntryView(prefillQuery: prefillQuery)
+            .environmentObject(state)
+
+        // Same as makeWindow: we own this via quickEntryWindow, so prevent double-free.
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: view)
+        window.isMovableByWindowBackground = true
+        window.backgroundColor = .clear
+        window.level = .floating
+        window.center()
+        window.orderFrontRegardless()
+        window.makeKey()
+
+        quickEntryWindow = window
+    }
+
+    // MARK: - Private
+
+    private func makeWindow(title: String, size: NSSize) -> NSWindow {
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        // We manage lifetime via conversationWindows dict, so ARC owns this window.
+        // isReleasedWhenClosed defaults to true, which causes AppKit to call [self release]
+        // inside close() — resulting in a double-free when our dict also releases it.
+        window.isReleasedWhenClosed = false
+        window.title = title
+        window.titlebarAppearsTransparent = false
+        window.center()
+        window.setFrameAutosaveName(title)
+        return window
+    }
+}
