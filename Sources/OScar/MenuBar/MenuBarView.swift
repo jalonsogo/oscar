@@ -75,9 +75,7 @@ struct MenuBarView: View {
             Spacer()
 
             Button("Settings") {
-                // macOS 13-compatible way to open the Settings window
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                NSApp.activate(ignoringOtherApps: true)
+                state.openSettingsAction?()
             }
             .font(.caption)
             .buttonStyle(.plain)

@@ -13,12 +13,16 @@ private final class KeyableWindow: NSWindow {
 final class WindowManager {
     private var conversationWindows: [String: NSWindow] = [:]
     private var quickEntryWindow: NSWindow?   // Strong ref — prevents autorelease double-free
+    private var settingsWindow: NSWindow?     // Strong ref — same reason
     private weak var state: AppState?
 
     func setup(state: AppState) {
         self.state = state
         state.openWindowAction = { [weak self] payload in
             self?.open(payload: payload)
+        }
+        state.openSettingsAction = { [weak self] in
+            self?.openSettings()
         }
         NotificationCenter.default.addObserver(
             forName: .oscOpenQuickEntry,
@@ -60,7 +64,7 @@ final class WindowManager {
         let view = ConversationView(sessionId: sessionId, initialQuery: initialQuery, agentOverride: agentOverride)
             .environmentObject(state)
 
-        let window = makeWindow(title: "OScar", size: NSSize(width: 760, height: 600))
+        let window = makeWindow(title: "OScar", size: NSSize(width: 900, height: 700), autosaveName: "conversation-\(sessionId)")
         window.contentViewController = NSHostingController(rootView: view)
         window.title = "OScar"
 
@@ -82,6 +86,31 @@ final class WindowManager {
     private func bringToFront(_ window: NSWindow) {
         window.orderFrontRegardless()
         window.makeKey()
+    }
+
+    func openSettings() {
+        if let existing = settingsWindow {
+            bringToFront(existing)
+            return
+        }
+        guard let state else { return }
+
+        let window = makeWindow(title: "OScar Settings", size: NSSize(width: 560, height: 580), autosaveName: "oscar-settings")
+        window.contentViewController = NSHostingController(
+            rootView: SettingsView().environmentObject(state)
+        )
+        window.isReleasedWhenClosed = false
+
+        NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.settingsWindow = nil }
+        }
+
+        settingsWindow = window
+        bringToFront(window)
     }
 
     func openQuickEntry(prefillQuery: String = "") {
@@ -116,7 +145,7 @@ final class WindowManager {
 
     // MARK: - Private
 
-    private func makeWindow(title: String, size: NSSize) -> NSWindow {
+    private func makeWindow(title: String, size: NSSize, autosaveName: String? = nil) -> NSWindow {
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
@@ -129,8 +158,18 @@ final class WindowManager {
         window.isReleasedWhenClosed = false
         window.title = title
         window.titlebarAppearsTransparent = false
+        window.minSize = size
+
+        // Set autosave name so the user's resized frame is remembered across sessions.
+        // Then enforce the minimum size in case a stale saved frame is smaller than
+        // our default — setFrameAutosaveName restores the saved rect immediately and
+        // can override the contentRect set above.
+        let name = autosaveName ?? title
+        window.setFrameAutosaveName(name)
+        if window.frame.width < size.width || window.frame.height < size.height {
+            window.setContentSize(size)
+        }
         window.center()
-        window.setFrameAutosaveName(title)
         return window
     }
 }

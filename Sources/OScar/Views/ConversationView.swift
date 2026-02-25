@@ -35,6 +35,14 @@ struct ConversationView: View {
         .navigationTitle(sessionTitle)
         .onAppear {
             isInputFocused = true
+            // Load existing conversation history from the local SQLite DB
+            let history = SessionStore.loadMessages(sessionId: sessionId)
+            messages = history.map { msg in
+                DisplayMessage(
+                    role: msg.role == "user" ? .user : .assistant,
+                    content: msg.content
+                )
+            }
             if let query = initialQuery, !query.isEmpty {
                 inputText = query
                 Task { await send() }

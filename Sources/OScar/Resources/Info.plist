@@ -27,6 +27,7 @@
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>com.apple.corespotlightitem</string>
+		<string>com.apple.corespotlight.search</string>
 		<string>com.oscarapp.start-conversation</string>
 		<string>com.oscarapp.continue-session</string>
 	</array>

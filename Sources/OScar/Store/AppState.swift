@@ -13,7 +13,20 @@ class AppState: ObservableObject {
 
     // MARK: - Settings (read from UserDefaults; write via SettingsView @AppStorage)
     var cagentBinaryPath: String {
-        UserDefaults.standard.string(forKey: "cagentBinaryPath") ?? "/usr/local/bin/cagent"
+        UserDefaults.standard.string(forKey: "cagentBinaryPath") ?? ""
+    }
+
+    /// Best available binary path: Settings override → downloaded → empty (CagentProcess tries system PATH).
+    var resolvedBinaryPath: String {
+        let configured = cagentBinaryPath
+        if !configured.isEmpty && FileManager.default.isExecutableFile(atPath: configured) {
+            return configured
+        }
+        let downloaded = CagentDownloader.installURL.path
+        if FileManager.default.isExecutableFile(atPath: downloaded) {
+            return downloaded
+        }
+        return configured
     }
     var agentConfigPath: String {
         UserDefaults.standard.string(forKey: "agentConfigPath") ?? ""
@@ -28,11 +41,15 @@ class AppState: ObservableObject {
     var workingDir: String {
         UserDefaults.standard.string(forKey: "workingDir") ?? ""
     }
+    var sessionsFolderPath: String {
+        UserDefaults.standard.string(forKey: "sessionsFolderPath") ?? ""
+    }
 
     // MARK: - Dependencies
     let client: CagentClient
     let process: CagentProcess
     let spotlight: SpotlightIndexer
+    let downloader: CagentDownloader
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -42,12 +59,15 @@ class AppState: ObservableObject {
         self.client = CagentClient()
         self.process = CagentProcess()
         self.spotlight = SpotlightIndexer()
+        self.downloader = CagentDownloader()
         observeServerStatus()
         observeIntentNotifications()
+        downloader.checkInstalled()
     }
 
     // Keep a reference so we can pass openWindow from the App scene
     var openWindowAction: ((String) -> Void)?
+    var openSettingsAction: (() -> Void)?
 
     // MARK: - Lifecycle
 
@@ -64,15 +84,36 @@ class AppState: ObservableObject {
             await loadSessions()
             return
         }
+        // Auto-download cagent if no binary is available anywhere
+        if !hasCagentBinary() && !downloader.state.isInProgress {
+            await downloader.downloadLatest()
+        }
         // Launch cagent subprocess
         await process.start(
-            binaryPath: cagentBinaryPath,
+            binaryPath: resolvedBinaryPath,
             agentConfigPath: agentConfigPath,
             port: serverPort
         )
         if serverStatus.isRunning {
             await loadSessions()
         }
+    }
+
+    /// Download (or update) cagent and restart the server if it was running.
+    func downloadCagent() async {
+        let wasRunning = serverStatus.isRunning
+        await downloader.downloadLatest()
+        if case .ready = downloader.state, wasRunning {
+            process.stop()
+            await start()
+        }
+    }
+
+    private func hasCagentBinary() -> Bool {
+        let fm = FileManager.default
+        if fm.isExecutableFile(atPath: resolvedBinaryPath) { return true }
+        let systemPaths = ["/usr/local/bin/cagent", "/opt/homebrew/bin/cagent"]
+        return systemPaths.contains { fm.isExecutableFile(atPath: $0) }
     }
 
     // MARK: - Sessions
@@ -88,13 +129,38 @@ class AppState: ObservableObject {
     }
 
     func createSession(title: String) async throws -> SessionSummary {
-        let dir = workingDir.isEmpty
-            ? FileManager.default.homeDirectoryForCurrentUser.path
-            : workingDir
+        let dir = resolvedSessionDir(for: title)
         let request = CreateSessionRequest(title: title, workingDir: dir)
         let session = try await client.createSession(request)
         await loadSessions()
         return session
+    }
+
+    private func resolvedSessionDir(for title: String) -> String {
+        let folder = sessionsFolderPath
+        if !folder.isEmpty {
+            let expanded = (folder as NSString).expandingTildeInPath
+            let name = sanitizeFolderName(title)
+            let sessionDir = (expanded as NSString).appendingPathComponent(name)
+            try? FileManager.default.createDirectory(
+                atPath: sessionDir, withIntermediateDirectories: true
+            )
+            return sessionDir
+        }
+        if !workingDir.isEmpty {
+            return workingDir
+        }
+        return FileManager.default.homeDirectoryForCurrentUser.path
+    }
+
+    private func sanitizeFolderName(_ name: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_ "))
+        let cleaned = name
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: allowed.inverted).joined()
+            .replacingOccurrences(of: " ", with: "_")
+        let truncated = String(cleaned.prefix(50))
+        return truncated.isEmpty ? "session" : truncated
     }
 
     func deleteSession(id: String) async {

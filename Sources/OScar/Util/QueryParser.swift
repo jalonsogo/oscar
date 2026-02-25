@@ -14,7 +14,11 @@ struct ParsedQuery {
     /// When nil the caller falls back to `AppState.agentName`.
     var effectiveAgentName: String? {
         guard let name = agentName else { return nil }
-        return sandbox ? "\(name)-box" : name
+        if sandbox {
+            let suffix = UserDefaults.standard.string(forKey: "boxAgentSuffix") ?? "-box"
+            return "\(name)\(suffix)"
+        }
+        return name
     }
 }
 

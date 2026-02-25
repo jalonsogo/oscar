@@ -66,29 +66,43 @@ struct SessionListView: View {
         .background(Color(NSColor.textBackgroundColor))
     }
 
+    @State private var hoveredSessionId: String? = nil
+
     private var sessionList: some View {
-        List(filtered) { session in
-            SessionRow(session: session)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    state.openWindowAction?(session.id)
-                }
-                .contextMenu {
-                    Button("Open") { state.openWindowAction?(session.id) }
-                    Button("Copy ID") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(session.id, forType: .string)
-                    }
-                    Divider()
-                    Button("Delete\u{2026}", role: .destructive) {
+        ScrollView {
+            LazyVStack(spacing: 2) {
+                ForEach(filtered) { session in
+                    SessionRow(
+                        session: session,
+                        isHovered: hoveredSessionId == session.id
+                    ) {
                         sessionToDelete = session
                         showDeleteConfirmation = true
                     }
+                    .contentShape(Rectangle())
+                    .onHover { hovered in
+                        hoveredSessionId = hovered ? session.id : nil
+                    }
+                    .onTapGesture(count: 2) {
+                        state.openWindowAction?(session.id)
+                    }
+                    .contextMenu {
+                        Button("Open") { state.openWindowAction?(session.id) }
+                        Button("Copy ID") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(session.id, forType: .string)
+                        }
+                        Divider()
+                        Button("Delete\u{2026}", role: .destructive) {
+                            sessionToDelete = session
+                            showDeleteConfirmation = true
+                        }
+                    }
                 }
-                .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
-                .listRowSeparator(.hidden)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
         }
-        .listStyle(.plain)
     }
 
     private var emptyState: some View {
@@ -108,30 +122,46 @@ struct SessionListView: View {
 
 struct SessionRow: View {
     let session: SessionSummary
-    @State private var isHovered = false
+    let isHovered: Bool
+    let onDelete: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(session.title.isEmpty ? "Untitled" : session.title)
-                .lineLimit(1)
-                .fontWeight(.medium)
+        HStack(alignment: .center, spacing: 0) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(session.title.isEmpty ? "Untitled" : session.title)
+                    .lineLimit(1)
+                    .fontWeight(.medium)
 
-            HStack(spacing: 8) {
-                Text(formattedDate)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Text(formattedDate)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
 
-                Text("\(session.numMessages) msgs")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-
-                if let dir = session.workingDir {
-                    Text(URL(fileURLWithPath: dir).lastPathComponent)
+                    Text("\(session.numMessages) msgs")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
-                        .lineLimit(1)
+
+                    if let dir = session.workingDir {
+                        Text(URL(fileURLWithPath: dir).lastPathComponent)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
                 }
             }
+
+            Spacer()
+
+            Button(action: onDelete) {
+                Image(systemName: "trash")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(6)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Delete session")
+            .opacity(isHovered ? 1 : 0)
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
@@ -141,7 +171,6 @@ struct SessionRow: View {
                 : Color.clear
         )
         .clipShape(RoundedRectangle(cornerRadius: 6))
-        .onHover { isHovered = $0 }
     }
 
     private var formattedDate: String {
@@ -150,7 +179,6 @@ struct SessionRow: View {
         if let date = iso.date(from: session.createdAt) {
             return RelativeDateTimeFormatter().localizedString(for: date, relativeTo: Date())
         }
-        // Fallback without fractional seconds
         iso.formatOptions = [.withInternetDateTime]
         if let date = iso.date(from: session.createdAt) {
             return RelativeDateTimeFormatter().localizedString(for: date, relativeTo: Date())
