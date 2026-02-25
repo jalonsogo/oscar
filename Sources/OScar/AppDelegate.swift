@@ -1,4 +1,5 @@
 import AppKit
+import CoreSpotlight
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var state: AppState!
@@ -36,6 +37,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         continue userActivity: NSUserActivity,
         restorationHandler: @escaping ([NSUserActivityRestoring]) -> Void
     ) -> Bool {
+        // Tap on a "Search in Oscar" Spotlight result — create a new session
+        if userActivity.activityType == CSQueryContinuationActionType,
+           let rawQuery = userActivity.userInfo?[CSSearchQueryString] as? String,
+           !rawQuery.isEmpty {
+            let parsed = parseQueryPrefix(rawQuery)
+            var userInfo: [String: String] = ["query": parsed.query]
+            if let agent = parsed.effectiveAgentName { userInfo["agentName"] = agent }
+            NotificationCenter.default.post(name: .oscOpenWithQuery, object: nil, userInfo: userInfo)
+            return true
+        }
+        // Tap on an indexed session result — open that session
         if let sessionID = SpotlightIndexer.sessionID(from: userActivity) {
             NotificationCenter.default.post(
                 name: .oscOpenSession,

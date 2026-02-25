@@ -66,15 +66,16 @@ struct QuickEntryView: View {
         isCreating = true
         error = nil
 
+        let parsed = parseQueryPrefix(text)
+
         do {
-            let title = String(text.prefix(60))
+            let title = String(parsed.query.prefix(60))
             let session = try await state.createSession(title: title)
-            // Open conversation window first, then close quick-entry.
-            // Order matters: openWindowAction brings a normal-level window to front,
-            // then we close the floating quick-entry so it doesn't obscure the result.
-            // WindowManager.open() will close this window on the next
-            // main-actor turn, after create() has fully returned.
-            state.openWindowAction?("\(session.id)|\(text)")
+            var payload = "\(session.id)|\(parsed.query)"
+            if let agent = parsed.effectiveAgentName {
+                payload += "|\(agent)"
+            }
+            state.openWindowAction?(payload)
         } catch {
             self.error = error.localizedDescription
             isCreating = false

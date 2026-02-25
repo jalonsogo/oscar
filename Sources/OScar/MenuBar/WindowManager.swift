@@ -32,10 +32,11 @@ final class WindowManager {
     // MARK: - Open
 
     func open(payload: String) {
-        let parts = payload.split(separator: "|", maxSplits: 1)
-        let sessionId = String(parts[0])
-        let query = parts.count > 1 ? String(parts[1]) : nil
-        openConversation(sessionId: sessionId, initialQuery: query)
+        let parts = payload.split(separator: "|", maxSplits: 2).map(String.init)
+        let sessionId = parts[0]
+        let query = parts.count > 1 ? parts[1] : nil
+        let agentOverride = parts.count > 2 ? parts[2] : nil
+        openConversation(sessionId: sessionId, initialQuery: query, agentOverride: agentOverride)
         // Defer QuickEntry close to the next main-actor turn so that
         // create() has fully returned before the window (and its SwiftUI
         // hierarchy) is torn down — prevents an autorelease double-free.
@@ -47,7 +48,7 @@ final class WindowManager {
         quickEntryWindow = nil
     }
 
-    func openConversation(sessionId: String, initialQuery: String? = nil) {
+    func openConversation(sessionId: String, initialQuery: String? = nil, agentOverride: String? = nil) {
         // Bring existing window to front if already open
         if let existing = conversationWindows[sessionId] {
             bringToFront(existing)
@@ -56,7 +57,7 @@ final class WindowManager {
 
         guard let state else { return }
 
-        let view = ConversationView(sessionId: sessionId, initialQuery: initialQuery)
+        let view = ConversationView(sessionId: sessionId, initialQuery: initialQuery, agentOverride: agentOverride)
             .environmentObject(state)
 
         let window = makeWindow(title: "OScar", size: NSSize(width: 760, height: 600))

@@ -126,11 +126,14 @@ class AppState: ObservableObject {
             queue: .main
         ) { [weak self] notification in
             let query = notification.userInfo?["query"] as? String ?? ""
+            let agentName = notification.userInfo?["agentName"] as? String
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 guard let session = try? await self.createSession(title: String(query.prefix(60)))
                 else { return }
-                self.openWindowAction?("\(session.id)|\(query)")
+                var payload = "\(session.id)|\(query)"
+                if let agentName { payload += "|\(agentName)" }
+                self.openWindowAction?(payload)
             }
         }
 

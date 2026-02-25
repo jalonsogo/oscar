@@ -4,6 +4,9 @@ import SwiftUI
 struct ConversationView: View {
     let sessionId: String
     let initialQuery: String?
+    /// Agent name override for this session (e.g. "claude", "claude-box").
+    /// When nil the global `AppState.agentName` setting is used.
+    let agentOverride: String?
 
     @EnvironmentObject var state: AppState
     @State private var messages: [DisplayMessage] = []
@@ -14,9 +17,10 @@ struct ConversationView: View {
     @FocusState private var isInputFocused: Bool
     @State private var streamingTask: Task<Void, Never>?
 
-    init(sessionId: String, initialQuery: String? = nil) {
+    init(sessionId: String, initialQuery: String? = nil, agentOverride: String? = nil) {
         self.sessionId = sessionId
         self.initialQuery = initialQuery
+        self.agentOverride = agentOverride
     }
 
     var body: some View {
@@ -143,7 +147,7 @@ struct ConversationView: View {
             let chatMessages = [ChatMessage(role: "user", content: text)]
             let stream = state.client.chat(
                 sessionId: sessionId,
-                agentName: state.agentName,
+                agentName: agentOverride ?? state.agentName,
                 messages: chatMessages
             )
 
