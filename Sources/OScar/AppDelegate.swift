@@ -30,4 +30,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Menu bar app — stay alive when all windows are closed
         return false
     }
+
+    func application(
+        _ application: NSApplication,
+        continue userActivity: NSUserActivity,
+        restorationHandler: @escaping ([NSUserActivityRestoring]) -> Void
+    ) -> Bool {
+        if let sessionID = SpotlightIndexer.sessionID(from: userActivity) {
+            NotificationCenter.default.post(
+                name: .oscOpenSession,
+                object: nil,
+                userInfo: ["payload": sessionID]
+            )
+            return true
+        }
+        return false
+    }
 }
