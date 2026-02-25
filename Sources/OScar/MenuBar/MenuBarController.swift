@@ -33,11 +33,34 @@ final class MenuBarController: NSObject {
         popover.contentSize = NSSize(width: 320, height: 480)
         popover.behavior = .transient
         popover.animates = true
-        popover.contentViewController = NSHostingController(
+
+        // Use NSVisualEffectView as root so the popover gets the frosted-glass
+        // menu material instead of a plain white background.
+        let hosting = NSHostingController(
             rootView: MenuBarView()
                 .environmentObject(state)
                 .task { await state.startIfNeeded() }
         )
+        hosting.view.wantsLayer = true
+        hosting.view.layer?.backgroundColor = NSColor.clear.cgColor
+
+        let vc = NSViewController()
+        let effectView = NSVisualEffectView()
+        effectView.material = .popover
+        effectView.blendingMode = .behindWindow
+        effectView.state = .active
+        vc.view = effectView
+
+        hosting.view.translatesAutoresizingMaskIntoConstraints = false
+        effectView.addSubview(hosting.view)
+        vc.addChild(hosting)
+        NSLayoutConstraint.activate([
+            hosting.view.topAnchor.constraint(equalTo: effectView.topAnchor),
+            hosting.view.leadingAnchor.constraint(equalTo: effectView.leadingAnchor),
+            hosting.view.trailingAnchor.constraint(equalTo: effectView.trailingAnchor),
+            hosting.view.bottomAnchor.constraint(equalTo: effectView.bottomAnchor),
+        ])
+        popover.contentViewController = vc
 
         // Close popover when clicking outside
         eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in

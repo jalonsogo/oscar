@@ -63,7 +63,7 @@ struct SessionListView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color(NSColor.textBackgroundColor))
+        .background(.regularMaterial)
     }
 
     @State private var hoveredSessionId: String? = nil
@@ -166,9 +166,7 @@ struct SessionRow: View {
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
         .background(
-            isHovered
-                ? Color(NSColor.selectedContentBackgroundColor).opacity(0.3)
-                : Color.clear
+            isHovered ? Color.accentColor.opacity(0.15) : Color.clear
         )
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }

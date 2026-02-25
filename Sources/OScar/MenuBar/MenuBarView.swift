@@ -22,6 +22,7 @@ struct MenuBarView: View {
             footer
         }
         .frame(width: 320)
+        .background(.clear)
         .alert(item: $state.alert) { info in
             Alert(title: Text("OScar"), message: Text(info.message))
         }
