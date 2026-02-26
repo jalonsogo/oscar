@@ -13,8 +13,7 @@ struct QuickEntryView: View {
     @State private var isCreating: Bool = false
     @State private var error: String? = nil
     @State private var selectedAgent: String = ""   // "" = use default
-    @State private var remoteMode: Bool = false      // Remote TBD
-    @State private var sandboxMode: Bool = false
+    @State private var remoteMode: Bool = false
     @FocusState private var focused: Bool
 
     var prefillQuery: String = ""
@@ -62,39 +61,22 @@ struct QuickEntryView: View {
             HStack(spacing: 0) {
 
                 // Agent picker
-                Picker("", selection: $selectedAgent) {
-                    Text(defaultAgentName)
-                        .tag("")
-                    if !discoveredAgents.isEmpty {
-                        Divider()
-                        ForEach(discoveredAgents, id: \.self) { agent in
-                            Text(agent).tag(agent)
-                        }
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .frame(maxWidth: 160)
+                AgentDropdownButton(
+                    selection: $selectedAgent,
+                    defaultName: defaultAgentName,
+                    sandboxes: sandboxEntries,
+                    agents: discoveredAgents
+                )
 
                 optionDivider
 
                 // Local / Remote toggle
                 HStack(spacing: 0) {
-                    modeButton("Local",  active: !remoteMode,  disabled: false) { remoteMode = false }
-                    modeButton("Remote", active: remoteMode,   disabled: true)  { remoteMode = true  }
+                    modeButton("Local",  active: !remoteMode, disabled: false) { remoteMode = false }
+                    modeButton("Remote", active: remoteMode,  disabled: true)  { remoteMode = true  }
                 }
                 .background(Color.primary.opacity(0.06))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
-
-                optionDivider
-
-                // Sandbox toggle
-                Toggle(isOn: $sandboxMode) {
-                    Text("Sandbox")
-                        .font(.callout)
-                        .foregroundStyle(sandboxMode ? .primary : .secondary)
-                }
-                .toggleStyle(.checkbox)
 
                 Spacer()
             }
@@ -139,6 +121,13 @@ struct QuickEntryView: View {
         .disabled(disabled)
     }
 
+    private var sandboxEntries: [(display: String, value: String)] {
+        [("Cagent", "cagent\(boxAgentSuffix)"),
+         ("Claude", "claude\(boxAgentSuffix)"),
+         ("Codex",  "codex\(boxAgentSuffix)"),
+         ("Gemini", "gemini\(boxAgentSuffix)")]
+    }
+
     private var discoveredAgents: [String] {
         guard !agentsFolderPath.isEmpty else { return [] }
         let url = URL(fileURLWithPath: (agentsFolderPath as NSString).expandingTildeInPath)
@@ -152,8 +141,7 @@ struct QuickEntryView: View {
     }
 
     private var effectiveAgent: String {
-        let base = selectedAgent.isEmpty ? defaultAgentName : selectedAgent
-        return sandboxMode ? "\(base)\(boxAgentSuffix)" : base
+        selectedAgent.isEmpty ? defaultAgentName : selectedAgent
     }
 
     // MARK: - Create session
@@ -175,5 +163,185 @@ struct QuickEntryView: View {
             self.error = error.localizedDescription
             isCreating = false
         }
+    }
+}
+
+// MARK: - Agent Dropdown
+
+private struct AgentDropdownButton: View {
+    @Binding var selection: String
+    let defaultName: String
+    let sandboxes: [(display: String, value: String)]
+    let agents: [String]
+
+    @State private var isOpen = false
+    @State private var search = ""
+
+    var body: some View {
+        Button { isOpen.toggle() } label: {
+            HStack(spacing: 5) {
+                if isSandbox {
+                    Image(systemName: "shippingbox.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+                Text(selectionLabel)
+                    .font(.callout)
+                    .lineLimit(1)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 4)
+            .background(Color.primary.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $isOpen, arrowEdge: .bottom) {
+            AgentPickerPopover(
+                selection: $selection,
+                isOpen: $isOpen,
+                search: $search,
+                defaultName: defaultName,
+                sandboxes: sandboxes,
+                agents: agents
+            )
+        }
+    }
+
+    private var isSandbox: Bool {
+        sandboxes.contains { $0.value == selection }
+    }
+
+    private var selectionLabel: String {
+        if selection.isEmpty { return defaultName }
+        return sandboxes.first { $0.value == selection }?.display ?? selection
+    }
+}
+
+private struct AgentPickerPopover: View {
+    @Binding var selection: String
+    @Binding var isOpen: Bool
+    @Binding var search: String
+    let defaultName: String
+    let sandboxes: [(display: String, value: String)]
+    let agents: [String]
+
+    @FocusState private var searchFocused: Bool
+
+    private func matches(_ text: String) -> Bool {
+        search.isEmpty || text.localizedCaseInsensitiveContains(search)
+    }
+
+    private func pick(_ value: String) {
+        selection = value
+        isOpen = false
+        search = ""
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Search bar
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                TextField("Search\u{2026}", text: $search)
+                    .textFieldStyle(.plain)
+                    .font(.callout)
+                    .focused($searchFocused)
+                if !search.isEmpty {
+                    Button { search = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    // Default agent
+                    if matches(defaultName) {
+                        pickerRow(label: defaultName, value: "", icon: "person.circle")
+                    }
+
+                    // Sandboxes group
+                    let filteredSandboxes = sandboxes.filter { matches($0.display) }
+                    if !filteredSandboxes.isEmpty {
+                        groupHeader("Sandboxes")
+                        ForEach(filteredSandboxes, id: \.value) { item in
+                            pickerRow(label: item.display, value: item.value,
+                                      icon: "shippingbox.fill", iconColor: .orange)
+                        }
+                    }
+
+                    // Agents group
+                    let filteredAgents = agents.filter { matches($0) }
+                    if !filteredAgents.isEmpty {
+                        groupHeader("Agents")
+                        ForEach(filteredAgents, id: \.self) { agent in
+                            pickerRow(label: agent, value: agent, icon: "doc.text")
+                        }
+                    }
+
+                    if !matches(defaultName) && sandboxes.filter({ matches($0.display) }).isEmpty && agents.filter({ matches($0) }).isEmpty {
+                        Text("No results")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .frame(maxHeight: 220)
+        }
+        .frame(width: 210)
+        .onAppear { searchFocused = true }
+    }
+
+    @ViewBuilder
+    private func groupHeader(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+            .padding(.bottom, 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func pickerRow(
+        label: String,
+        value: String,
+        icon: String,
+        iconColor: Color = .secondary
+    ) -> some View {
+        let isSelected = selection == value
+        Button { pick(value) } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isSelected ? "checkmark" : icon)
+                    .font(.caption)
+                    .frame(width: 14)
+                    .foregroundStyle(isSelected ? Color.accentColor : iconColor)
+                Text(label)
+                    .font(.callout)
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(isSelected ? Color.accentColor.opacity(0.08) : Color.clear)
+        }
+        .buttonStyle(.plain)
     }
 }
