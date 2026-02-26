@@ -5,6 +5,7 @@ import AppKit
 struct MenuBarView: View {
     @EnvironmentObject var state: AppState
     @State private var showQuitConfirmation = false
+    @State private var selectedTab: SessionTab = .local
 
     var body: some View {
         ZStack {
@@ -13,15 +14,12 @@ struct MenuBarView: View {
                 Divider()
 
                 if state.serverStatus.isRunning {
-                    SessionListView()
-                        .frame(height: 380)
+                    SessionListView(selectedTab: $selectedTab)
+                        .frame(height: 420)
                 } else {
                     serverStatusView
-                        .frame(height: 380)
+                        .frame(height: 420)
                 }
-
-                Divider()
-                footer
             }
 
             if showQuitConfirmation {
@@ -29,76 +27,89 @@ struct MenuBarView: View {
                     .zIndex(1)
             }
         }
-        .frame(width: 320)
+        .frame(width: 340)
         .background(.clear)
         .alert(item: $state.alert) { info in
             Alert(title: Text("OScar"), message: Text(info.message))
         }
     }
 
-    // MARK: - Subviews
+    // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
+            // Title + server status dot
             HStack(spacing: 5) {
                 Circle()
                     .fill(statusColor)
                     .frame(width: 7, height: 7)
                 Text("OScar")
-                    .fontWeight(.semibold)
+                    .font(.headline)
             }
 
             Spacer()
 
-            Button {
-                Task { await state.loadSessions() }
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .font(.callout)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .disabled(!state.serverStatus.isRunning)
+            // Action buttons
+            HStack(spacing: 4) {
+                iconButton("house", isActive: selectedTab == .local) {
+                    selectedTab = .local
+                }
+                .help("Home")
 
-            Button {
-                NotificationCenter.default.post(name: .oscOpenQuickEntry, object: nil)
-            } label: {
-                Image(systemName: "plus.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(.blue)
+                iconButton("gear") {
+                    state.openSettingsAction?()
+                }
+                .help("Settings")
+
+                iconButton("arrow.clockwise") {
+                    Task { await state.loadSessions() }
+                }
+                .disabled(!state.serverStatus.isRunning)
+                .help("Reload sessions")
+
+                iconButton("plus") {
+                    NotificationCenter.default.post(name: .oscOpenQuickEntry, object: nil)
+                }
+                .disabled(!state.serverStatus.isRunning)
+                .help("New session")
+
+                iconButton("power") {
+                    showQuitConfirmation = true
+                }
+                .help("Quit OScar")
             }
-            .buttonStyle(.plain)
-            .disabled(!state.serverStatus.isRunning)
-            .help("New conversation")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
     }
 
-    private var footer: some View {
-        HStack {
-            Text("\(state.sessions.count) sessions")
-                .foregroundStyle(.tertiary)
-
-            Spacer()
-
-            Button("Settings") {
-                state.openSettingsAction?()
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-
-            Button("Quit") {
-                showQuitConfirmation = true
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .keyboardShortcut("q", modifiers: .command)
+    @ViewBuilder
+    private func iconButton(
+        _ systemName: String,
+        isActive: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 13))
+                .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
+                .frame(width: 28, height: 28)
+                .background(
+                    RoundedRectangle(cornerRadius: 7)
+                        .fill(isActive
+                              ? Color.accentColor.opacity(0.12)
+                              : Color.primary.opacity(0.06))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 7)
+                        .stroke(isActive ? Color.accentColor.opacity(0.45) : Color.clear,
+                                lineWidth: 1)
+                )
         }
-        .font(.callout)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .buttonStyle(.plain)
     }
+
+    // MARK: - Quit overlay
 
     private var quitOverlay: some View {
         ZStack {
@@ -114,18 +125,14 @@ struct MenuBarView: View {
                     .multilineTextAlignment(.center)
 
                 HStack(spacing: 12) {
-                    Button("Cancel") {
-                        showQuitConfirmation = false
-                    }
-                    .keyboardShortcut(.escape, modifiers: [])
-                    .buttonStyle(.bordered)
+                    Button("Cancel") { showQuitConfirmation = false }
+                        .keyboardShortcut(.escape, modifiers: [])
+                        .buttonStyle(.bordered)
 
-                    Button("Quit") {
-                        NSApplication.shared.terminate(nil)
-                    }
-                    .keyboardShortcut(.return, modifiers: [])
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red)
+                    Button("Quit") { NSApplication.shared.terminate(nil) }
+                        .keyboardShortcut(.return, modifiers: [])
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
                 }
             }
             .padding(24)
@@ -137,6 +144,8 @@ struct MenuBarView: View {
         }
     }
 
+    // MARK: - Server status
+
     private var serverStatusView: some View {
         VStack(spacing: 16) {
             Spacer()
@@ -145,37 +154,26 @@ struct MenuBarView: View {
             case .launching:
                 VStack(spacing: 8) {
                     ProgressView()
-                    Text("Starting cagent\u{2026}")
-                        .foregroundStyle(.secondary)
+                    Text("Starting cagent\u{2026}").foregroundStyle(.secondary)
                 }
 
             case .error(let msg):
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
-                        .foregroundStyle(.orange)
+                        .font(.largeTitle).foregroundStyle(.orange)
                     Text(msg)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                        .font(.caption).foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center).padding(.horizontal)
                     HStack {
-                        Button("Retry") {
-                            Task { await state.start() }
-                        }
-                        Button("Install cagent") {
-                            CagentProcess.openCagentInstallPage()
-                        }
+                        Button("Retry") { Task { await state.start() } }
+                        Button("Install cagent") { CagentProcess.openCagentInstallPage() }
                     }
                 }
 
             case .stopped:
                 VStack(spacing: 8) {
-                    Image(systemName: "power")
-                        .font(.largeTitle)
-                        .foregroundStyle(.tertiary)
-                    Text("Server stopped")
-                        .foregroundStyle(.secondary)
+                    Image(systemName: "power").font(.largeTitle).foregroundStyle(.tertiary)
+                    Text("Server stopped").foregroundStyle(.secondary)
                     Button("Start") { Task { await state.start() } }
                 }
 
@@ -189,10 +187,10 @@ struct MenuBarView: View {
 
     private var statusColor: Color {
         switch state.serverStatus {
-        case .running: return .green
+        case .running:  return .green
         case .launching: return .yellow
-        case .error: return .red
-        case .stopped: return .gray
+        case .error:    return .red
+        case .stopped:  return .gray
         }
     }
 }
