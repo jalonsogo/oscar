@@ -183,7 +183,7 @@ struct ConversationView: View {
 
             isStreaming = false
             agentStatus = .idle
-            state.markIdle(sessionId)
+            state.markWaiting(sessionId)
             finishAssistantMessage(id: assistantId)
             Task { await state.loadSessions() }
         }
@@ -231,7 +231,7 @@ struct ConversationView: View {
             messages.append(DisplayMessage(role: .system, content: "\u{26A0} \(message)", isError: true))
             isStreaming = false
             agentStatus = .idle
-            state.markIdle(sessionId)
+            state.markWaiting(sessionId)
 
         case .maxIterationsReached:
             messages.append(DisplayMessage(
@@ -240,12 +240,12 @@ struct ConversationView: View {
             ))
             isStreaming = false
             agentStatus = .idle
-            state.markIdle(sessionId)
+            state.markWaiting(sessionId)
 
         case .streamStopped:
             isStreaming = false
             agentStatus = .idle
-            state.markIdle(sessionId)
+            state.markWaiting(sessionId)
 
         default:
             break

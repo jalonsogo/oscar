@@ -11,9 +11,23 @@ class AppState: ObservableObject {
     @Published var isQuickEntryVisible: Bool = false
     @Published var alert: AlertInfo? = nil
     @Published var streamingSessions: Set<String> = []
+    @Published var waitingSessions:   Set<String> = []
 
-    func markStreaming(_ sessionId: String) { streamingSessions.insert(sessionId) }
-    func markIdle(_ sessionId: String)      { streamingSessions.remove(sessionId) }
+    /// Agent is generating a response.
+    func markStreaming(_ sessionId: String) {
+        streamingSessions.insert(sessionId)
+        waitingSessions.remove(sessionId)
+    }
+    /// Agent finished — conversation window is open, waiting for next user message.
+    func markWaiting(_ sessionId: String) {
+        streamingSessions.remove(sessionId)
+        waitingSessions.insert(sessionId)
+    }
+    /// Conversation window closed (or stream cancelled) — no longer relevant.
+    func markIdle(_ sessionId: String) {
+        streamingSessions.remove(sessionId)
+        waitingSessions.remove(sessionId)
+    }
 
     // MARK: - Settings (read from UserDefaults; write via SettingsView @AppStorage)
     var cagentBinaryPath: String {

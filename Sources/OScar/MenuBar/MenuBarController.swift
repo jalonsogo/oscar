@@ -53,7 +53,7 @@ final class MenuBarController: NSObject {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
-        updateIcon(status: state.serverStatus)
+        syncIcon()
 
         // Popover
         popover = NSPopover()
@@ -92,39 +92,53 @@ final class MenuBarController: NSObject {
             self?.closePopover()
         }
 
-        // React to server status changes
+        // Re-evaluate icon whenever any relevant state changes
         Task { @MainActor in
-            for await status in state.$serverStatus.values {
-                guard state.streamingSessions.isEmpty else { continue }
-                self.updateIcon(status: status)
-            }
+            for await _ in state.$serverStatus.values      { self.syncIcon() }
         }
-
-        // Start / stop animation based on active streaming sessions
         Task { @MainActor in
-            for await streaming in state.$streamingSessions.values {
-                if streaming.isEmpty {
-                    self.stopAnimation()
-                } else {
-                    self.startAnimation()
-                }
-            }
+            for await _ in state.$streamingSessions.values { self.syncIcon() }
+        }
+        Task { @MainActor in
+            for await _ in state.$waitingSessions.values   { self.syncIcon() }
         }
     }
 
-    // MARK: - Icon updates
+    // MARK: - Icon sync
 
-    func updateIcon(status: ServerStatus) {
-        guard let button = statusItem?.button else { return }
-        let isDisabled: Bool
-        if case .launching = status { isDisabled = true } else { isDisabled = false }
+    /// Single source of truth for the menu bar icon state.
+    /// Priority: streaming (animate) > waiting for input (ask) > disabled > static
+    func syncIcon() {
+        guard let state = appState, let button = statusItem?.button else { return }
 
-        let image = isDisabled
-            ? (disabledIcon ?? fallbackIcon())
-            : (staticIcon   ?? fallbackIcon())
-        button.image = image
-        button.title = image == nil ? "OSc" : ""
-        button.appearsDisabled = isDisabled
+        if !state.streamingSessions.isEmpty {
+            startAnimation()
+            return
+        }
+
+        // Not streaming — stop any running animation first
+        if animationTimer != nil {
+            animationTimer?.invalidate()
+            animationTimer = nil
+        }
+
+        if !state.waitingSessions.isEmpty {
+            button.image = askIcon ?? staticIcon ?? fallbackIcon()
+            button.title = ""
+            button.appearsDisabled = false
+            return
+        }
+
+        if case .launching = state.serverStatus {
+            button.image = disabledIcon ?? fallbackIcon()
+            button.title = (disabledIcon == nil && fallbackIcon() == nil) ? "OSc" : ""
+            button.appearsDisabled = true
+        } else {
+            let img = staticIcon ?? fallbackIcon()
+            button.image = img
+            button.title = img == nil ? "OSc" : ""
+            button.appearsDisabled = false
+        }
     }
 
     // MARK: - Animation
@@ -135,14 +149,6 @@ final class MenuBarController: NSObject {
         statusItem?.button?.appearsDisabled = false
         animationTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.advanceFrame() }
-        }
-    }
-
-    private func stopAnimation() {
-        animationTimer?.invalidate()
-        animationTimer = nil
-        if let state = appState {
-            updateIcon(status: state.serverStatus)
         }
     }
 
