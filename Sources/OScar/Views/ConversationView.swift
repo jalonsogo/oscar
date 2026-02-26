@@ -15,6 +15,7 @@ struct ConversationView: View {
     @State private var agentStatus: AgentStatus = .idle
     @State private var sessionTitle: String = "New conversation"
     @State private var tokenInfo: String = ""
+    @State private var showSwitcher: Bool = false
     @FocusState private var isInputFocused: Bool
     @State private var streamingTask: Task<Void, Never>?
 
@@ -58,7 +59,7 @@ struct ConversationView: View {
     // MARK: - Subviews
 
     private var titleBar: some View {
-        HStack {
+        HStack(spacing: 8) {
             Text(sessionTitle)
                 .font(.headline)
                 .lineLimit(1)
@@ -80,6 +81,28 @@ struct ConversationView: View {
                 HStack(spacing: 4) {
                     ProgressView().scaleEffect(0.6)
                     Text("Running \(name)\u{2026}").font(.caption).foregroundStyle(.orange)
+                }
+            }
+
+            // Session switcher
+            if !state.sessions.isEmpty {
+                Button {
+                    showSwitcher.toggle()
+                } label: {
+                    HStack(spacing: 3) {
+                        if let idx = state.sessions.firstIndex(where: { $0.id == sessionId }) {
+                            Text("\(idx + 1) / \(state.sessions.count)")
+                                .monospacedDigit()
+                        }
+                        Image(systemName: showSwitcher ? "chevron.up" : "chevron.down")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $showSwitcher, arrowEdge: .top) {
+                    SessionSwitcherView(currentSessionId: sessionId)
+                        .environmentObject(state)
                 }
             }
         }
@@ -264,6 +287,67 @@ struct ConversationView: View {
         if let idx = messages.firstIndex(where: { $0.id == id }) {
             messages[idx].isStreaming = false
         }
+    }
+}
+
+// MARK: - Session Switcher
+
+private struct SessionSwitcherView: View {
+    let currentSessionId: String
+    @EnvironmentObject var state: AppState
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(Array(state.sessions.enumerated()), id: \.element.id) { index, session in
+                    Button {
+                        dismiss()
+                        if session.id != currentSessionId {
+                            state.openWindowAction?(session.id)
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(dotColor(for: session.id))
+                                .frame(width: 7, height: 7)
+
+                            Text(session.title.isEmpty ? "Untitled" : session.title)
+                                .lineLimit(1)
+                                .fontWeight(session.id == currentSessionId ? .semibold : .regular)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            Text("\(index + 1)")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .monospacedDigit()
+                                .frame(width: 24, alignment: .trailing)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(
+                            session.id == currentSessionId
+                                ? Color.accentColor.opacity(0.1)
+                                : Color.clear
+                        )
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    if index < state.sessions.count - 1 {
+                        Divider().padding(.horizontal, 8)
+                    }
+                }
+            }
+        }
+        .frame(width: 280)
+        .frame(maxHeight: 320)
+    }
+
+    private func dotColor(for id: String) -> Color {
+        if state.streamingSessions.contains(id) { return .green }
+        if state.waitingSessions.contains(id)   { return .orange }
+        return Color(NSColor.tertiaryLabelColor)
     }
 }
 
