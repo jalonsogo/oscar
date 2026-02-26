@@ -4,13 +4,14 @@ import SwiftUI
 
 enum SessionTab: String, CaseIterable {
     case all    = "All"
-    case local  = "Local"
+    case agents = "Agents"
     case remote = "Remote"
 }
 
 /// Shows all sessions with search and actions. Lives inside the MenuBarExtra popover.
 struct SessionListView: View {
     @EnvironmentObject var state: AppState
+    @AppStorage("agentsFolderPath") private var agentsFolderPath: String = ""
     @State private var searchText: String = ""
     @State private var selectedTab: SessionTab = .all
     @State private var sessionToDelete: SessionSummary? = nil
@@ -18,15 +19,36 @@ struct SessionListView: View {
 
     /// Sessions for the active tab, filtered by search text.
     private var tabSessions: [SessionSummary] {
-        // Remote is TBD — always empty for now.
-        guard selectedTab != .remote else { return [] }
-        // Local and All are identical until remote sessions are introduced.
+        guard selectedTab != .remote && selectedTab != .agents else { return [] }
         let base = state.sessions
         guard !searchText.isEmpty else { return base }
         return base.filter {
             $0.title.localizedCaseInsensitiveContains(searchText) ||
             ($0.workingDir ?? "").localizedCaseInsensitiveContains(searchText)
         }
+    }
+
+    // MARK: - Agents tab data
+
+    private var discoveredAgentNames: [String] {
+        guard !agentsFolderPath.isEmpty else { return [] }
+        let url = URL(fileURLWithPath: (agentsFolderPath as NSString).expandingTildeInPath)
+        let files = try? FileManager.default.contentsOfDirectory(
+            at: url, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
+        )
+        return (files ?? [])
+            .filter { ["yaml", "yml"].contains($0.pathExtension.lowercased()) }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+            .map { $0.deletingPathExtension().lastPathComponent }
+    }
+
+    private func sessions(forAgent agentName: String) -> [SessionSummary] {
+        state.sessions.filter { state.sessionAgentMap[$0.id] == agentName }
+    }
+
+    private var unassignedSessions: [SessionSummary] {
+        let assigned = Set(state.sessionAgentMap.keys)
+        return state.sessions.filter { !assigned.contains($0.id) }
     }
 
     private var waitingFiltered:   [SessionSummary] { tabSessions.filter { state.waitingSessions.contains($0.id) } }
@@ -39,10 +61,14 @@ struct SessionListView: View {
         VStack(spacing: 0) {
             tabBar
             Divider()
-            searchBar
+            if selectedTab != .agents && selectedTab != .remote {
+                searchBar
+            }
 
             if selectedTab == .remote {
                 remotePlaceholder
+            } else if selectedTab == .agents {
+                agentSections
             } else if tabSessions.isEmpty {
                 emptyState
             } else {
@@ -93,6 +119,14 @@ struct SessionListView: View {
                                     .clipShape(Capsule())
                             } else if tab == .all {
                                 Text("\(state.sessions.count)")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundStyle(selectedTab == tab ? Color.primary : Color.secondary.opacity(0.5))
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1)
+                                    .background(selectedTab == tab ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.1))
+                                    .clipShape(Capsule())
+                            } else if tab == .agents && !discoveredAgentNames.isEmpty {
+                                Text("\(discoveredAgentNames.count)")
                                     .font(.system(size: 10, weight: .medium))
                                     .foregroundStyle(selectedTab == tab ? Color.primary : Color.secondary.opacity(0.5))
                                     .padding(.horizontal, 5)
@@ -229,6 +263,53 @@ struct SessionListView: View {
             .padding(.vertical, 6)
     }
 
+    private var agentSections: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                if discoveredAgentNames.isEmpty {
+                    VStack(spacing: 10) {
+                        Spacer().frame(height: 20)
+                        Image(systemName: "person.2.wave.2")
+                            .font(.largeTitle)
+                            .foregroundStyle(.tertiary)
+                        Text("No agents configured")
+                            .font(.headline)
+                            .foregroundStyle(.secondary)
+                        Text("Set an agents folder in Settings\nto see your agents here.")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        Spacer().frame(height: 20)
+                    }
+                } else {
+                    ForEach(discoveredAgentNames, id: \.self) { agentName in
+                        AgentSectionRow(
+                            agentName: agentName,
+                            sessions: sessions(forAgent: agentName)
+                        ) { session in
+                            sessionToDelete = session
+                            showDeleteConfirmation = true
+                        }
+                    }
+                    // Sessions not linked to any agent
+                    let others = unassignedSessions
+                    if !others.isEmpty {
+                        AgentSectionRow(
+                            agentName: "Others",
+                            sessions: others
+                        ) { session in
+                            sessionToDelete = session
+                            showDeleteConfirmation = true
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+        }
+    }
+
     private var emptyState: some View {
         VStack(spacing: 8) {
             Spacer()
@@ -345,5 +426,89 @@ struct SessionRow: View {
             return RelativeDateTimeFormatter().localizedString(for: date, relativeTo: Date())
         }
         return session.createdAt
+    }
+}
+
+// MARK: - Agent Section Row
+
+private struct AgentSectionRow: View {
+    @EnvironmentObject var state: AppState
+    let agentName: String
+    let sessions: [SessionSummary]
+    let onDelete: (SessionSummary) -> Void
+
+    @State private var isExpanded = true
+    @State private var hoveredSessionId: String? = nil
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Section header — tap to expand/collapse
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 12)
+                    Image(systemName: "doc.text")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(agentName)
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    if !sessions.isEmpty {
+                        Text("\(sessions.count)")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(Color.secondary.opacity(0.12))
+                            .clipShape(Capsule())
+                    }
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 8)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                if sessions.isEmpty {
+                    Text("No sessions yet")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading, 30)
+                        .padding(.vertical, 6)
+                } else {
+                    ForEach(sessions) { session in
+                        SessionRow(
+                            session: session,
+                            isHovered: hoveredSessionId == session.id,
+                            isStreaming: state.streamingSessions.contains(session.id),
+                            isWaiting: state.waitingSessions.contains(session.id),
+                            onDelete: { onDelete(session) }
+                        )
+                        .padding(.leading, 12)
+                        .contentShape(Rectangle())
+                        .onHover { hovered in hoveredSessionId = hovered ? session.id : nil }
+                        .onTapGesture(count: 2) { state.openWindowAction?(session.id) }
+                        .contextMenu {
+                            Button("Open") { state.openWindowAction?(session.id) }
+                            Button("Copy ID") {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(session.id, forType: .string)
+                            }
+                            Divider()
+                            Button("Delete\u{2026}", role: .destructive) { onDelete(session) }
+                        }
+                    }
+                }
+            }
+
+            Divider()
+                .padding(.horizontal, 4)
+        }
     }
 }

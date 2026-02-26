@@ -71,10 +71,11 @@ struct QuickEntryView: View {
         do {
             let title = String(parsed.query.prefix(60))
             let session = try await state.createSession(title: title)
-            var payload = "\(session.id)|\(parsed.query)"
             if let agent = parsed.effectiveAgentName {
-                payload += "|\(agent)"
+                state.recordAgent(agent, for: session.id)
             }
+            var payload = "\(session.id)|\(parsed.query)"
+            if let agent = parsed.effectiveAgentName { payload += "|\(agent)" }
             state.openWindowAction?(payload)
         } catch {
             self.error = error.localizedDescription

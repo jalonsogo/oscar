@@ -12,6 +12,8 @@ class AppState: ObservableObject {
     @Published var alert: AlertInfo? = nil
     @Published var streamingSessions: Set<String> = []
     @Published var waitingSessions:   Set<String> = []
+    /// Maps sessionId → agentName for sessions started with a specific agent. Persisted.
+    @Published var sessionAgentMap: [String: String] = [:]
 
     /// Agent is generating a response.
     func markStreaming(_ sessionId: String) {
@@ -81,9 +83,15 @@ class AppState: ObservableObject {
         self.process = CagentProcess()
         self.spotlight = SpotlightIndexer()
         self.downloader = CagentDownloader()
+        sessionAgentMap = UserDefaults.standard.dictionary(forKey: "sessionAgentMap") as? [String: String] ?? [:]
         observeServerStatus()
         observeIntentNotifications()
         downloader.checkInstalled()
+    }
+
+    func recordAgent(_ name: String, for sessionId: String) {
+        sessionAgentMap[sessionId] = name
+        UserDefaults.standard.set(sessionAgentMap, forKey: "sessionAgentMap")
     }
 
     // Keep a reference so we can pass openWindow from the App scene
@@ -189,6 +197,8 @@ class AppState: ObservableObject {
             try await client.deleteSession(id: id)
             sessions.removeAll { $0.id == id }
             spotlight.removeSession(id: id)
+            sessionAgentMap.removeValue(forKey: id)
+            UserDefaults.standard.set(sessionAgentMap, forKey: "sessionAgentMap")
         } catch {
             alert = AlertInfo(message: "Delete failed: \(error.localizedDescription)")
         }
@@ -218,6 +228,7 @@ class AppState: ObservableObject {
                 guard let self else { return }
                 guard let session = try? await self.createSession(title: String(query.prefix(60)))
                 else { return }
+                if let agentName { self.recordAgent(agentName, for: session.id) }
                 var payload = "\(session.id)|\(query)"
                 if let agentName { payload += "|\(agentName)" }
                 self.openWindowAction?(payload)
