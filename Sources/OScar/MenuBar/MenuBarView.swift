@@ -78,7 +78,6 @@ struct MenuBarView: View {
             Button("Settings") {
                 state.openSettingsAction?()
             }
-            .font(.caption)
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
 
