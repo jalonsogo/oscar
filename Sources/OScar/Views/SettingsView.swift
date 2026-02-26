@@ -8,6 +8,9 @@ struct SettingsView: View {
             GeneralTab()
                 .tabItem { Label("General", systemImage: "gear") }
 
+            AgentsTab()
+                .tabItem { Label("Agents", systemImage: "person.2.wave.2") }
+
             DockerAgentTab()
                 .tabItem { Label("Docker Agent", systemImage: "shippingbox") }
 
@@ -168,6 +171,130 @@ private struct GeneralTab: View {
         } catch {
             // silently fail — user will notice the path didn't update
         }
+    }
+}
+
+// MARK: - Agents Tab
+
+private struct AgentsTab: View {
+    @AppStorage("agentsFolderPath") private var agentsFolderPath: String = ""
+    @AppStorage("agentConfigPath")  private var agentConfigPath: String  = ""
+
+    var body: some View {
+        Form {
+            Section("Agents Folder") {
+                LabeledContent("Folder") {
+                    HStack {
+                        Text(folderLabel)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        Button("Choose\u{2026}") { pickFolder() }
+                        if !agentsFolderPath.isEmpty {
+                            Button("Clear") { agentsFolderPath = "" }
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .help("Folder containing agent YAML config files")
+            }
+
+            if !agentsFolderPath.isEmpty {
+                Section("Discovered Agents") {
+                    if discoveredAgents.isEmpty {
+                        Text("No .yaml / .yml files found in this folder")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                    } else {
+                        ForEach(discoveredAgents, id: \.path) { url in
+                            AgentRow(url: url, isActive: url.path == agentConfigPath) {
+                                agentConfigPath = url.path
+                            }
+                        }
+                    }
+                }
+
+                Section("Usage") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Start a session with a specific agent:")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("cagent run {agent.yaml} {folder}")
+                            .font(.caption.monospaced())
+                            .foregroundStyle(Color(NSColor.systemGreen))
+                            .padding(8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(NSColor.textBackgroundColor))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var folderLabel: String {
+        agentsFolderPath.isEmpty
+            ? "Not set"
+            : (agentsFolderPath as NSString).abbreviatingWithTildeInPath
+    }
+
+    private var discoveredAgents: [URL] {
+        guard !agentsFolderPath.isEmpty else { return [] }
+        let url = URL(fileURLWithPath: (agentsFolderPath as NSString).expandingTildeInPath)
+        let files = try? FileManager.default.contentsOfDirectory(
+            at: url, includingPropertiesForKeys: nil, options: .skipsHiddenFiles
+        )
+        return (files ?? [])
+            .filter { ["yaml", "yml"].contains($0.pathExtension.lowercased()) }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    private func pickFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Select Agents Folder"
+        if panel.runModal() == .OK, let url = panel.url {
+            agentsFolderPath = url.path
+        }
+    }
+}
+
+private struct AgentRow: View {
+    let url: URL
+    let isActive: Bool
+    let onSetActive: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 5) {
+                    if isActive {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                            .font(.caption)
+                    }
+                    Text(url.deletingPathExtension().lastPathComponent)
+                        .fontWeight(isActive ? .semibold : .regular)
+                }
+                Text((url.path as NSString).abbreviatingWithTildeInPath)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Button("Open") { NSWorkspace.shared.open(url) }
+                .foregroundStyle(.secondary)
+
+            if !isActive {
+                Button("Set Active") { onSetActive() }
+            }
+        }
+        .padding(.vertical, 2)
     }
 }
 
