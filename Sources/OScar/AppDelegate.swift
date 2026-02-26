@@ -1,10 +1,13 @@
 import AppKit
+import AppIntents
 import CoreSpotlight
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var state: AppState!
     private var menuBarController: MenuBarController!
     private var windowManager: WindowManager!
+    /// Strong reference — must stay alive so Spotlight keeps showing "Search in Oscar".
+    private var searchActivity: NSUserActivity?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // Run as menu-bar-only app — no Dock icon
@@ -25,6 +28,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             await state.start()
         }
+
+        // Advertise search continuation so "Search in Oscar" appears in Spotlight
+        // alongside "Search in Finder" / "Search the Web".
+        let activity = NSUserActivity(activityType: CSQueryContinuationActionType)
+        activity.isEligibleForSearch = true
+        activity.title = "Ask Oscar"
+        activity.becomeCurrent()
+        searchActivity = activity
+
+        // Tell Siri/Spotlight about the "Ask Oscar" phrase shortcuts.
+        OScarShortcuts.updateAppShortcutParameters()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

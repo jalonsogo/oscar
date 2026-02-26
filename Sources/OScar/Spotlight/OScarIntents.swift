@@ -52,9 +52,11 @@ struct OScarShortcuts: AppShortcutsProvider {
             intent: StartConversationIntent(),
             phrases: [
                 "Ask \(.applicationName)",
+                "Ask \(.applicationName) \(\.$query)",
+                "Ask \(.applicationName) about \(\.$query)",
+                "\(.applicationName) \(\.$query)",
                 "Start \(.applicationName) conversation",
-                "New \(.applicationName) session",
-                "Open \(.applicationName)"
+                "New \(.applicationName) session"
             ],
             shortTitle: "Ask Oscar",
             systemImageName: "brain.head.profile"
