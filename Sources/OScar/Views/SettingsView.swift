@@ -24,30 +24,32 @@ struct SettingsView: View {
     @State private var selection: Tab = .general
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Tab bar — custom so it works on every macOS version
-            HStack(spacing: 0) {
+        HStack(spacing: 0) {
+            // Left sidebar
+            VStack(alignment: .leading, spacing: 2) {
                 ForEach(Tab.allCases, id: \.self) { tab in
                     Button { selection = tab } label: {
-                        VStack(spacing: 4) {
-                            Image(systemName: tab.icon).font(.title2)
-                            Text(tab.rawValue).font(.caption)
+                        HStack(spacing: 9) {
+                            Image(systemName: tab.icon)
+                                .frame(width: 16)
+                                .foregroundStyle(selection == tab ? Color.accentColor : Color.secondary)
+                            Text(tab.rawValue)
+                                .foregroundStyle(selection == tab ? Color.primary : Color.secondary)
+                            Spacer()
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .foregroundStyle(selection == tab ? Color.accentColor : Color.secondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(selection == tab ? Color.accentColor.opacity(0.1) : Color.clear)
+                        )
                     }
                     .buttonStyle(.plain)
-                    .background(
-                        VStack(spacing: 0) {
-                            Spacer()
-                            Rectangle()
-                                .fill(selection == tab ? Color.accentColor : Color.clear)
-                                .frame(height: 2)
-                        }
-                    )
                 }
+                Spacer()
             }
+            .padding(8)
+            .frame(width: 150)
             .background(Color(NSColor.windowBackgroundColor))
 
             Divider()
@@ -66,12 +68,12 @@ struct SettingsView: View {
                     case .about:   AboutTab()
                     }
                 }
-                .padding(20)
+                .padding(24)
                 .frame(maxWidth: .infinity, alignment: .top)
             }
         }
         .environmentObject(state)
-        .frame(width: 620, height: 540)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -362,48 +364,99 @@ private struct AgentRow: View {
 // MARK: - Docker Agent Tab
 
 private struct DockerAgentTab: View {
-    @AppStorage("boxAgentSuffix") private var boxAgentSuffix: String = "-box"
+    @EnvironmentObject var state: AppState
+
+    @AppStorage("boxAgentSuffix")          private var boxAgentSuffix: String = "-box"
+    @AppStorage("dockerSandboxServerMode") private var dockerSandboxServerMode: Bool = false
+    @AppStorage("dockerYolo")              private var dockerYolo: Bool = false
 
     var body: some View {
         Form {
-            Section("Prefix Routing") {
+            Section("Sandbox Agent Suffix") {
                 HStack {
-                    Text("Box agent suffix")
+                    Text("Suffix")
                     Spacer()
                     TextField("-box", text: $boxAgentSuffix)
                         .frame(maxWidth: 120)
                         .multilineTextAlignment(.trailing)
                 }
-                .help("Appended to the agent name when using the box/ prefix. E.g. claude-box")
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("How to use prefix routing in Quick Entry or Spotlight:")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Group {
-                        Text("• ") + Text("claude/query").font(.system(.caption, design: .monospaced)) + Text(" — use the \"claude\" agent")
-                        Text("• ") + Text("box/claude/query").font(.system(.caption, design: .monospaced)) + Text(" — use \"claude\(boxAgentSuffix)\" (Docker sandbox)")
-                        Text("• ") + Text("query").font(.system(.caption, design: .monospaced)) + Text(" — use the default agent")
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 4)
+                .help("When Sandbox mode is enabled in Quick Entry, this suffix is appended to the agent name (e.g. claude → claude-box).")
             }
 
-            Section("Agent Configuration") {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Define sandbox agents in your agent.yaml:")
+            Section("Docker Desktop Sandbox") {
+                HStack {
+                    Text("Docker status")
+                    Spacer()
+                    dockerStatusBadge
+                }
+
+                Toggle(isOn: $dockerSandboxServerMode) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Launch cagent via Docker Sandbox")
+                        Text("Runs cagent inside Docker Desktop's managed sandbox. API credentials are injected automatically — no need to set ANTHROPIC_API_KEY or similar in OScar settings.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                if dockerSandboxServerMode {
+                    Toggle(isOn: $dockerYolo) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Disable approval prompts (--yolo)")
+                            Text("Grants unrestricted sandbox access without confirmation dialogs.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    HStack {
+                        Label("Restart required to apply changes", systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                        Spacer()
+                        Button("Restart Server") {
+                            state.process.stop()
+                            Task { await state.start() }
+                        }
+                    }
+                }
+            }
+
+            Section("Docker Toolset — agent.yaml") {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Run tools inside an isolated Docker container:")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-
-                    Text(yamlExample)
+                    Text(dockerToolsetYaml)
                         .font(.caption.monospaced())
                         .foregroundStyle(Color(NSColor.systemGreen))
                         .padding(10)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color(NSColor.textBackgroundColor))
                         .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .textSelection(.enabled)
+                }
+                .padding(.vertical, 4)
+            }
+
+            Section("Docker MCP Catalog — agent.yaml") {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Use containerized tools from the Docker MCP Catalog:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(mcpCatalogYaml)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(Color(NSColor.systemGreen))
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(NSColor.textBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .textSelection(.enabled)
+                    Button("Browse Docker MCP Catalog") {
+                        NSWorkspace.shared.open(URL(string: "https://hub.docker.com/mcp")!)
+                    }
+                    .font(.caption)
                 }
                 .padding(.vertical, 4)
             }
@@ -411,7 +464,39 @@ private struct DockerAgentTab: View {
         .formStyle(.grouped)
     }
 
-    private var yamlExample: String {
+    @ViewBuilder
+    private var dockerStatusBadge: some View {
+        if let path = dockerBinaryPath {
+            Label(path, systemImage: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(.green)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        } else {
+            HStack(spacing: 6) {
+                Label("Not found", systemImage: "xmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                Button("Install") {
+                    NSWorkspace.shared.open(
+                        URL(string: "https://docs.docker.com/desktop/install/mac-install/")!
+                    )
+                }
+                .font(.caption)
+            }
+        }
+    }
+
+    private var dockerBinaryPath: String? {
+        let candidates = [
+            "/usr/local/bin/docker",
+            "/opt/homebrew/bin/docker",
+            "/Applications/Docker.app/Contents/Resources/bin/docker"
+        ]
+        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
+    private var dockerToolsetYaml: String {
         """
         agents:
           claude:
@@ -423,6 +508,21 @@ private struct DockerAgentTab: View {
             toolsets:
               - type: docker
                 image: ubuntu:22.04
+        """
+    }
+
+    private var mcpCatalogYaml: String {
+        """
+        agents:
+          claude:
+            model: anthropic/claude-opus-4-6
+            toolsets:
+              - type: mcp
+                ref: docker:duckduckgo
+              - type: mcp
+                ref: docker:brave-search
+                env:
+                  BRAVE_API_KEY: "your-key"
         """
     }
 }

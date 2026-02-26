@@ -14,14 +14,14 @@ class CagentProcess: ObservableObject {
     // MARK: - Public
 
     /// Start the cagent API server. No-op if already running.
-    func start(binaryPath: String, agentConfigPath: String, port: Int = 8080) async {
+    func start(
+        binaryPath: String,
+        agentConfigPath: String,
+        port: Int = 8080,
+        dockerSandbox: Bool = false,
+        dockerYolo: Bool = false
+    ) async {
         guard process == nil else { return }
-
-        let resolvedBinary = await resolve(binaryPath: binaryPath)
-        guard let binary = resolvedBinary else {
-            status = .error("cagent binary not found at \(binaryPath)")
-            return
-        }
 
         let configPath = resolvedAgentConfig(agentConfigPath)
         guard let config = configPath else {
@@ -29,8 +29,23 @@ class CagentProcess: ObservableObject {
             return
         }
 
-        status = .launching
-        launch(binary: binary, config: config, port: port)
+        if dockerSandbox {
+            guard let dockerBin = findDocker() else {
+                status = .error("Docker Desktop not found. Install it from docker.com or disable Docker Sandbox mode in Settings.")
+                return
+            }
+            status = .launching
+            launchDockerSandbox(docker: dockerBin, config: config, port: port, yolo: dockerYolo)
+        } else {
+            let resolvedBinary = await resolve(binaryPath: binaryPath)
+            guard let binary = resolvedBinary else {
+                status = .error("cagent binary not found at \(binaryPath)")
+                return
+            }
+            status = .launching
+            launch(binary: binary, config: config, port: port)
+        }
+
         await waitUntilHealthy(port: port)
     }
 
@@ -43,6 +58,64 @@ class CagentProcess: ObservableObject {
     }
 
     // MARK: - Private
+
+    private func findDocker() -> String? {
+        let candidates = [
+            "/usr/local/bin/docker",
+            "/opt/homebrew/bin/docker",
+            "/Applications/Docker.app/Contents/Resources/bin/docker"
+        ]
+        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
+    private func launchDockerSandbox(docker: String, config: String, port: Int, yolo: Bool) {
+        let sessionDB = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".cagent/session.db").path
+
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: docker)
+        // docker sandbox run --publish 127.0.0.1:<port>:8080 cagent -- api <config> --listen 0.0.0.0:8080
+        var args: [String] = [
+            "sandbox", "run",
+            "--publish", "127.0.0.1:\(port):8080",
+            "cagent", "--",
+            "api", config,
+            "--listen", "0.0.0.0:8080",
+            "--session-db", sessionDB
+        ]
+        if yolo { args.append("--yolo") }
+        p.arguments = args
+
+        let errorPipe = Pipe()
+        p.standardError = errorPipe
+
+        p.terminationHandler = { [weak self] proc in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.process = nil
+                if proc.terminationStatus != 0 && self.restartCount < 3 {
+                    self.restartCount += 1
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    await self.start(
+                        binaryPath: "",
+                        agentConfigPath: config,
+                        port: port,
+                        dockerSandbox: true,
+                        dockerYolo: yolo
+                    )
+                } else {
+                    self.status = .error("Docker sandbox exited (code \(proc.terminationStatus))")
+                }
+            }
+        }
+
+        do {
+            try p.run()
+            self.process = p
+        } catch {
+            status = .error("Failed to start Docker sandbox: \(error.localizedDescription)")
+        }
+    }
 
     private func launch(binary: String, config: String, port: Int) {
         let sessionDB = FileManager.default.homeDirectoryForCurrentUser

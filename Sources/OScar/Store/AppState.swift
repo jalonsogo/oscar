@@ -61,6 +61,12 @@ class AppState: ObservableObject {
     var workingDir: String {
         UserDefaults.standard.string(forKey: "workingDir") ?? ""
     }
+    var dockerSandboxServerMode: Bool {
+        UserDefaults.standard.bool(forKey: "dockerSandboxServerMode")
+    }
+    var dockerYolo: Bool {
+        UserDefaults.standard.bool(forKey: "dockerYolo")
+    }
     var sessionsFolderPath: String {
         let stored = UserDefaults.standard.string(forKey: "sessionsFolderPath") ?? ""
         if !stored.isEmpty { return stored }
@@ -121,7 +127,9 @@ class AppState: ObservableObject {
         await process.start(
             binaryPath: resolvedBinaryPath,
             agentConfigPath: agentConfigPath,
-            port: serverPort
+            port: serverPort,
+            dockerSandbox: dockerSandboxServerMode,
+            dockerYolo: dockerYolo
         )
         if serverStatus.isRunning {
             await loadSessions()
