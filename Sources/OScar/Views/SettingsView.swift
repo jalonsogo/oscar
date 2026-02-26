@@ -90,60 +90,67 @@ private struct GeneralTab: View {
     var body: some View {
         Form {
             Section("Agent") {
-                LabeledContent("Agent name") {
+                HStack {
+                    Text("Agent name")
+                    Spacer()
                     TextField("agent", text: $agentName)
                         .frame(maxWidth: 200)
+                        .multilineTextAlignment(.trailing)
                 }
                 .help("Run mode passed to /api/sessions/{id}/agent/{name}")
 
-                LabeledContent("Config file") {
-                    HStack {
-                        Text(configLabel)
-                            .foregroundStyle(agentConfigPath.isEmpty ? Color.red : Color.secondary)
-                            .lineLimit(1)
-                        Button("Choose\u{2026}") { showConfigPicker = true }
-                        if !agentConfigPath.isEmpty {
-                            Button("Create default") { createDefaultConfig() }
-                                .foregroundStyle(Color.secondary)
-                        }
+                HStack {
+                    Text("Config file")
+                    Spacer()
+                    Text(configLabel)
+                        .foregroundStyle(agentConfigPath.isEmpty ? Color.red : Color.secondary)
+                        .lineLimit(1)
+                    Button("Choose\u{2026}") { showConfigPicker = true }
+                    if !agentConfigPath.isEmpty {
+                        Button("Create default") { createDefaultConfig() }
+                            .foregroundStyle(Color.secondary)
                     }
                 }
                 .help("Path to your cagent agent.yaml")
 
-                LabeledContent("Sessions folder") {
-                    HStack {
-                        Text(sessionsFolderLabel)
+                HStack {
+                    Text("Sessions folder")
+                    Spacer()
+                    Text(sessionsFolderLabel)
+                        .foregroundStyle(Color.secondary)
+                        .lineLimit(1)
+                    Button("Choose\u{2026}") { pickSessionsFolder() }
+                    if !sessionsFolderPath.isEmpty {
+                        Button("Clear") { sessionsFolderPath = "" }
                             .foregroundStyle(Color.secondary)
-                            .lineLimit(1)
-                        Button("Choose\u{2026}") { pickSessionsFolder() }
-                        if !sessionsFolderPath.isEmpty {
-                            Button("Clear") { sessionsFolderPath = "" }
-                                .foregroundStyle(Color.secondary)
-                        }
                     }
                 }
                 .help("New sessions are created in {folder}/{session_name}")
             }
 
             Section("Server") {
-                LabeledContent("Port") {
+                HStack {
+                    Text("Port")
+                    Spacer()
                     TextField("8080", value: $serverPort, format: .number)
                         .frame(maxWidth: 80)
+                        .multilineTextAlignment(.trailing)
                 }
 
-                LabeledContent("Status") {
-                    HStack(spacing: 6) {
-                        Circle().fill(statusColor).frame(width: 8, height: 8)
-                        Text(state.serverStatus.description).foregroundStyle(Color.secondary)
-                        Spacer()
-                        Button("Restart") {
-                            state.process.stop()
-                            Task { await state.start() }
-                        }
+                HStack(spacing: 6) {
+                    Text("Status")
+                    Spacer()
+                    Circle().fill(statusColor).frame(width: 8, height: 8)
+                    Text(state.serverStatus.description).foregroundStyle(Color.secondary)
+                    Button("Restart") {
+                        state.process.stop()
+                        Task { await state.start() }
                     }
                 }
 
-                LabeledContent("Sessions") {
+                HStack {
+                    Text("Sessions")
+                    Spacer()
                     Text("\(state.sessions.count)").foregroundStyle(Color.secondary)
                 }
             }
@@ -230,16 +237,16 @@ private struct AgentsTab: View {
     var body: some View {
         Form {
             Section("Agents Folder") {
-                LabeledContent("Folder") {
-                    HStack {
-                        Text(folderLabel)
+                HStack {
+                    Text("Folder")
+                    Spacer()
+                    Text(folderLabel)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Button("Choose\u{2026}") { pickFolder() }
+                    if !agentsFolderPath.isEmpty {
+                        Button("Clear") { agentsFolderPath = "" }
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                        Button("Choose\u{2026}") { pickFolder() }
-                        if !agentsFolderPath.isEmpty {
-                            Button("Clear") { agentsFolderPath = "" }
-                                .foregroundStyle(.secondary)
-                        }
                     }
                 }
                 .help("Folder containing agent YAML config files")
@@ -360,9 +367,12 @@ private struct DockerAgentTab: View {
     var body: some View {
         Form {
             Section("Prefix Routing") {
-                LabeledContent("Box agent suffix") {
+                HStack {
+                    Text("Box agent suffix")
+                    Spacer()
                     TextField("-box", text: $boxAgentSuffix)
                         .frame(maxWidth: 120)
+                        .multilineTextAlignment(.trailing)
                 }
                 .help("Appended to the agent name when using the box/ prefix. E.g. claude-box")
 
@@ -429,24 +439,24 @@ struct UpdateTab: View {
     var body: some View {
         Form {
             Section("cagent Binary") {
-                LabeledContent("Status") {
-                    HStack(spacing: 8) {
-                        statusBadge
-                        Spacer()
-                        Button(buttonLabel, action: onDownload)
-                            .disabled(downloader.state.isInProgress)
-                    }
+                HStack(spacing: 8) {
+                    Text("Status")
+                    Spacer()
+                    statusBadge
+                    Button(buttonLabel, action: onDownload)
+                        .disabled(downloader.state.isInProgress)
                 }
 
-                LabeledContent("Override path") {
-                    HStack {
-                        TextField("Auto-detected", text: $cagentBinaryPath)
-                            .frame(maxWidth: 200)
-                        Button("Choose\u{2026}") { showBinaryPicker = true }
-                        if !cagentBinaryPath.isEmpty {
-                            Button("Clear") { cagentBinaryPath = "" }
-                                .foregroundStyle(Color.secondary)
-                        }
+                HStack {
+                    Text("Override path")
+                    Spacer()
+                    TextField("Auto-detected", text: $cagentBinaryPath)
+                        .frame(maxWidth: 200)
+                        .multilineTextAlignment(.trailing)
+                    Button("Choose\u{2026}") { showBinaryPicker = true }
+                    if !cagentBinaryPath.isEmpty {
+                        Button("Clear") { cagentBinaryPath = "" }
+                            .foregroundStyle(Color.secondary)
                     }
                 }
                 .help("Leave empty to use the auto-downloaded or system cagent binary")
