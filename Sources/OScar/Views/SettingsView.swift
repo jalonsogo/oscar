@@ -372,6 +372,10 @@ private struct DockerAgentTab: View {
 
     var body: some View {
         Form {
+            Section("Docker Account") {
+                DockerAccountRow()
+            }
+
             Section("Sandbox Agent Suffix") {
                 HStack {
                     Text("Suffix")
@@ -524,6 +528,149 @@ private struct DockerAgentTab: View {
                 env:
                   BRAVE_API_KEY: "your-key"
         """
+    }
+}
+
+// MARK: - Docker Account Row
+
+private struct DockerHubProfile: Decodable {
+    let username: String?
+    let fullName: String?
+    let gravatarUrl: String?
+
+    enum CodingKeys: String, CodingKey {
+        case username = "user"
+        case fullName = "full_name"
+        case gravatarUrl = "gravatar_url"
+    }
+}
+
+private struct DockerAccountRow: View {
+    @State private var username: String = ""
+    @State private var fullName: String = ""
+    @State private var gravatarURL: URL? = nil
+    @State private var isLoading = true
+
+    var body: some View {
+        Group {
+            if isLoading {
+                HStack {
+                    ProgressView().scaleEffect(0.7)
+                    Text("Checking Docker account\u{2026}")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                }
+            } else if username.isEmpty {
+                HStack {
+                    Image(systemName: "person.circle")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.tertiary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Not signed in")
+                            .fontWeight(.medium)
+                        Text("Sign in to Docker Desktop to use sandbox features.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Sign in") {
+                        NSWorkspace.shared.open(
+                            URL(fileURLWithPath: "/Applications/Docker.app")
+                        )
+                    }
+                }
+                .padding(.vertical, 4)
+            } else {
+                HStack(spacing: 12) {
+                    AsyncImage(url: gravatarURL) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Image(systemName: "person.circle.fill")
+                            .font(.system(size: 36))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(width: 36, height: 36)
+                    .clipShape(Circle())
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(fullName.isEmpty ? username : fullName)
+                            .fontWeight(.medium)
+                        if !username.isEmpty {
+                            Text(username)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    Button {
+                        signOut()
+                    } label: {
+                        Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .task { await loadAccount() }
+    }
+
+    private func loadAccount() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        guard let un = await dockerUsername(), !un.isEmpty else { return }
+        username = un
+
+        guard let url = URL(string: "https://hub.docker.com/v2/users/\(un)"),
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              let profile = try? JSONDecoder().decode(DockerHubProfile.self, from: data)
+        else { return }
+
+        fullName = profile.fullName ?? ""
+        if let raw = profile.gravatarUrl, !raw.isEmpty {
+            gravatarURL = URL(string: raw)
+        }
+    }
+
+    private func dockerUsername() async -> String? {
+        guard let docker = findDocker() else { return nil }
+        return await withCheckedContinuation { continuation in
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: docker)
+            p.arguments = ["info", "--format", "{{.Username}}"]
+            let pipe = Pipe()
+            p.standardOutput = pipe
+            p.standardError = Pipe()
+            try? p.run()
+            p.waitUntilExit()
+            let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let value = out.flatMap { $0.isEmpty || $0 == "<no value>" ? nil : $0 }
+            continuation.resume(returning: value)
+        }
+    }
+
+    private func signOut() {
+        guard let docker = findDocker() else { return }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: docker)
+        p.arguments = ["logout"]
+        p.standardOutput = Pipe()
+        p.standardError = Pipe()
+        try? p.run()
+        p.waitUntilExit()
+        username = ""
+        fullName = ""
+        gravatarURL = nil
+    }
+
+    private func findDocker() -> String? {
+        ["/usr/local/bin/docker",
+         "/opt/homebrew/bin/docker",
+         "/Applications/Docker.app/Contents/Resources/bin/docker"]
+            .first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 }
 
