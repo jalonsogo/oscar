@@ -25,6 +25,7 @@ struct SettingsView: View {
         .environmentObject(state)
         .padding(20)
         .frame(width: 620)
+        .frame(minHeight: 500)
     }
 }
 

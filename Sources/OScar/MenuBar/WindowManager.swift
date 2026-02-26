@@ -100,11 +100,26 @@ final class WindowManager {
         }
         guard let state else { return }
 
-        let window = makeWindow(title: "OScar Settings", size: NSSize(width: 660, height: 580), autosaveName: "oscar-settings")
+        let size = NSSize(width: 660, height: 580)
+        // Settings uses a plain titled window (no fullSizeContentView) so
+        // the SwiftUI TabView tab bar is not obscured by the title area.
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.isReleasedWhenClosed = false
+        window.title = "OScar Settings"
+        window.minSize = size
+        window.tabbingMode = .disallowed
+        // Explicitly set content size — frame.height includes title bar so
+        // size-comparison checks are unreliable. Always enforce here.
+        window.setContentSize(size)
+        window.center()
         window.contentViewController = NSHostingController(
             rootView: SettingsView().environmentObject(state)
         )
-        window.isReleasedWhenClosed = false
 
         NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
