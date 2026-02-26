@@ -75,7 +75,8 @@ struct SessionListView: View {
                     SessionRow(
                         session: session,
                         isHovered: hoveredSessionId == session.id,
-                        isStreaming: state.streamingSessions.contains(session.id)
+                        isStreaming: state.streamingSessions.contains(session.id),
+                        isWaiting: state.waitingSessions.contains(session.id)
                     ) {
                         sessionToDelete = session
                         showDeleteConfirmation = true
@@ -121,16 +122,22 @@ struct SessionListView: View {
 
 // MARK: - Session Row
 
-struct PulsingDot: View {
+private struct SessionStatusDot: View {
+    enum Status { case streaming, waiting }
+    let status: Status
     @State private var pulsing = false
 
     var body: some View {
         Circle()
-            .fill(Color.green)
+            .fill(status == .streaming ? Color.green : Color.orange)
             .frame(width: 7, height: 7)
             .scaleEffect(pulsing ? 1.3 : 0.8)
-            .opacity(pulsing ? 1 : 0.5)
-            .animation(.easeInOut(duration: 0.65).repeatForever(autoreverses: true), value: pulsing)
+            .opacity(pulsing ? 1 : 0.55)
+            .animation(
+                .easeInOut(duration: status == .streaming ? 0.65 : 1.1)
+                    .repeatForever(autoreverses: true),
+                value: pulsing
+            )
             .onAppear { pulsing = true }
     }
 }
@@ -139,6 +146,7 @@ struct SessionRow: View {
     let session: SessionSummary
     let isHovered: Bool
     let isStreaming: Bool
+    let isWaiting: Bool
     let onDelete: () -> Void
 
     var body: some View {
@@ -148,23 +156,37 @@ struct SessionRow: View {
                     Text(session.title.isEmpty ? "Untitled" : session.title)
                         .lineLimit(1)
                         .fontWeight(.medium)
-                    if isStreaming { PulsingDot() }
+                    if isStreaming {
+                        SessionStatusDot(status: .streaming)
+                    } else if isWaiting {
+                        SessionStatusDot(status: .waiting)
+                    }
                 }
 
                 HStack(spacing: 8) {
-                    Text(formattedDate)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if isStreaming {
+                        Text("Running\u{2026}")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    } else if isWaiting {
+                        Text("Waiting for reply")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    } else {
+                        Text(formattedDate)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
 
-                    Text("\(session.numMessages) msgs")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-
-                    if let dir = session.workingDir {
-                        Text(URL(fileURLWithPath: dir).lastPathComponent)
+                        Text("\(session.numMessages) msgs")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
-                            .lineLimit(1)
+
+                        if let dir = session.workingDir {
+                            Text(URL(fileURLWithPath: dir).lastPathComponent)
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                        }
                     }
                 }
             }
