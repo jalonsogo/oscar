@@ -10,6 +10,10 @@ class AppState: ObservableObject {
     @Published var serverStatus: ServerStatus = .stopped
     @Published var isQuickEntryVisible: Bool = false
     @Published var alert: AlertInfo? = nil
+    @Published var streamingSessions: Set<String> = []
+
+    func markStreaming(_ sessionId: String) { streamingSessions.insert(sessionId) }
+    func markIdle(_ sessionId: String)      { streamingSessions.remove(sessionId) }
 
     // MARK: - Settings (read from UserDefaults; write via SettingsView @AppStorage)
     var cagentBinaryPath: String {

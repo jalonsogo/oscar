@@ -74,7 +74,8 @@ struct SessionListView: View {
                 ForEach(filtered) { session in
                     SessionRow(
                         session: session,
-                        isHovered: hoveredSessionId == session.id
+                        isHovered: hoveredSessionId == session.id,
+                        isStreaming: state.streamingSessions.contains(session.id)
                     ) {
                         sessionToDelete = session
                         showDeleteConfirmation = true
@@ -120,17 +121,35 @@ struct SessionListView: View {
 
 // MARK: - Session Row
 
+struct PulsingDot: View {
+    @State private var pulsing = false
+
+    var body: some View {
+        Circle()
+            .fill(Color.green)
+            .frame(width: 7, height: 7)
+            .scaleEffect(pulsing ? 1.3 : 0.8)
+            .opacity(pulsing ? 1 : 0.5)
+            .animation(.easeInOut(duration: 0.65).repeatForever(autoreverses: true), value: pulsing)
+            .onAppear { pulsing = true }
+    }
+}
+
 struct SessionRow: View {
     let session: SessionSummary
     let isHovered: Bool
+    let isStreaming: Bool
     let onDelete: () -> Void
 
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(session.title.isEmpty ? "Untitled" : session.title)
-                    .lineLimit(1)
-                    .fontWeight(.medium)
+                HStack(spacing: 5) {
+                    Text(session.title.isEmpty ? "Untitled" : session.title)
+                        .lineLimit(1)
+                        .fontWeight(.medium)
+                    if isStreaming { PulsingDot() }
+                }
 
                 HStack(spacing: 8) {
                     Text(formattedDate)

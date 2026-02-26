@@ -12,6 +12,7 @@ struct ConversationView: View {
     @State private var messages: [DisplayMessage] = []
     @State private var inputText: String = ""
     @State private var isStreaming: Bool = false
+    @State private var agentStatus: AgentStatus = .idle
     @State private var sessionTitle: String = "New conversation"
     @State private var tokenInfo: String = ""
     @FocusState private var isInputFocused: Bool
@@ -50,6 +51,7 @@ struct ConversationView: View {
         }
         .onDisappear {
             streamingTask?.cancel()
+            state.markIdle(sessionId)
         }
     }
 
@@ -66,8 +68,19 @@ struct ConversationView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            if isStreaming {
-                ProgressView().scaleEffect(0.6)
+            switch agentStatus {
+            case .idle:
+                EmptyView()
+            case .thinking:
+                HStack(spacing: 4) {
+                    ProgressView().scaleEffect(0.6)
+                    Text("Thinking\u{2026}").font(.caption).foregroundStyle(.secondary)
+                }
+            case .runningTool(let name):
+                HStack(spacing: 4) {
+                    ProgressView().scaleEffect(0.6)
+                    Text("Running \(name)\u{2026}").font(.caption).foregroundStyle(.orange)
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -109,6 +122,8 @@ struct ConversationView: View {
                 if isStreaming {
                     streamingTask?.cancel()
                     isStreaming = false
+                    agentStatus = .idle
+                    state.markIdle(sessionId)
                 } else {
                     Task { await send() }
                 }
@@ -144,6 +159,8 @@ struct ConversationView: View {
         guard !text.isEmpty else { return }
         inputText = ""
         isStreaming = true
+        agentStatus = .thinking
+        state.markStreaming(sessionId)
 
         messages.append(DisplayMessage(role: .user, content: text))
 
@@ -165,6 +182,8 @@ struct ConversationView: View {
             }
 
             isStreaming = false
+            agentStatus = .idle
+            state.markIdle(sessionId)
             finishAssistantMessage(id: assistantId)
             Task { await state.loadSessions() }
         }
@@ -183,6 +202,7 @@ struct ConversationView: View {
             appendToMessage(id: assistantMsgId, chunk: content)
 
         case .toolCall(_, let name, let arguments):
+            agentStatus = .runningTool(name)
             messages.append(DisplayMessage(
                 role: .tool,
                 content: arguments,
@@ -191,6 +211,7 @@ struct ConversationView: View {
             ))
 
         case .toolResponse(let name, let response, let isError):
+            agentStatus = .thinking
             if let idx = messages.lastIndex(where: {
                 $0.role == .tool && $0.toolName == name && $0.isStreaming
             }) {
@@ -209,6 +230,8 @@ struct ConversationView: View {
         case .error(let message):
             messages.append(DisplayMessage(role: .system, content: "\u{26A0} \(message)", isError: true))
             isStreaming = false
+            agentStatus = .idle
+            state.markIdle(sessionId)
 
         case .maxIterationsReached:
             messages.append(DisplayMessage(
@@ -216,9 +239,13 @@ struct ConversationView: View {
                 content: "Maximum iterations reached."
             ))
             isStreaming = false
+            agentStatus = .idle
+            state.markIdle(sessionId)
 
         case .streamStopped:
             isStreaming = false
+            agentStatus = .idle
+            state.markIdle(sessionId)
 
         default:
             break
@@ -238,6 +265,14 @@ struct ConversationView: View {
             messages[idx].isStreaming = false
         }
     }
+}
+
+// MARK: - Agent Status
+
+enum AgentStatus {
+    case idle
+    case thinking
+    case runningTool(String)
 }
 
 // MARK: - Message Bubble
