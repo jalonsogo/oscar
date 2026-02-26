@@ -21,6 +21,7 @@ bundle: build
 	@cp Sources/OScar/Resources/Info.plist "$(APP_BUNDLE)/Contents/Info.plist"
 	@cp "Sources/OScar/Resources/App Icon.icns" "$(APP_BUNDLE)/Contents/Resources/AppIcon.icns"
 	@cp -r Sources/OScar/Resources/icons "$(APP_BUNDLE)/Contents/Resources/icons"
+	@cp "Sources/OScar/Resources/Oscar-logo.png" "$(APP_BUNDLE)/Contents/Resources/Oscar-logo.png"
 	@echo "✓ $(APP_BUNDLE)"
 
 ## Run the debug build directly (no dock suppression — use bundle for real usage)

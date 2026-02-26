@@ -459,9 +459,12 @@ private struct AboutTab: View {
         Form {
             Section {
                 VStack(spacing: 12) {
-                    Image(systemName: "brain.head.profile")
-                        .font(.system(size: 52))
-                        .foregroundStyle(Color.blue)
+                    if let img = Bundle.main.image(forResource: "Oscar-logo") {
+                        Image(nsImage: img)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 80, height: 80)
+                    }
                     Text("OScar")
                         .font(.title.bold())
                     Text("Version \(version)")
