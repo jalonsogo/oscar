@@ -17,12 +17,12 @@ struct QuickEntryView: View {
         VStack(spacing: 16) {
             HStack(spacing: 10) {
                 Image(systemName: "brain.head.profile")
-                    .font(.title2)
+                    .font(.title)
                     .foregroundStyle(Color.blue)
 
                 TextField("Ask OScar anything\u{2026}", text: $query)
                     .textFieldStyle(.plain)
-                    .font(.title3)
+                    .font(.title2)
                     .focused($focused)
                     .onSubmit { Task { await create() } }
 

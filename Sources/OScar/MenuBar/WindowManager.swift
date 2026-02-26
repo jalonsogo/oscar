@@ -13,6 +13,7 @@ private final class KeyableWindow: NSWindow {
 final class WindowManager {
     private var conversationWindows: [String: NSWindow] = [:]
     private var quickEntryWindow: NSWindow?   // Strong ref — prevents autorelease double-free
+    private var quickEntryKeyMonitor: Any?    // Local key monitor for Escape
     private var settingsWindow: NSWindow?     // Strong ref — same reason
     private weak var state: AppState?
 
@@ -48,6 +49,10 @@ final class WindowManager {
     }
 
     private func closeQuickEntry() {
+        if let monitor = quickEntryKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            quickEntryKeyMonitor = nil
+        }
         quickEntryWindow?.close()
         quickEntryWindow = nil
     }
@@ -139,6 +144,15 @@ final class WindowManager {
         window.center()
         window.orderFrontRegardless()
         window.makeKey()
+
+        // Escape key closes the window
+        quickEntryKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == 53 { // Escape
+                self?.closeQuickEntry()
+                return nil // consume the event
+            }
+            return event
+        }
 
         quickEntryWindow = window
     }
