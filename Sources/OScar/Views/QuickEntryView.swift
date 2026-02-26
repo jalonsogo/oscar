@@ -343,15 +343,17 @@ private struct AgentPickerPopover: View {
                 Image(systemName: isSelected ? "checkmark" : icon)
                     .font(.caption)
                     .frame(width: 14)
-                    .foregroundStyle(isSelected ? Color.accentColor : iconColor)
+                    .foregroundStyle(isSelected ? Color.primary : iconColor)
                 Text(label)
                     .font(.callout)
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                    .foregroundStyle(Color.primary)
+                    .fontWeight(isSelected ? .semibold : .regular)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isSelected ? Color.accentColor.opacity(0.25) : Color.clear)
+            .background(isSelected ? Color.white.opacity(0.15) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 5))
         }
         .buttonStyle(.plain)
     }
