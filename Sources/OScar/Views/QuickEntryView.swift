@@ -351,7 +351,7 @@ private struct AgentPickerPopover: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isSelected ? Color.accentColor.opacity(0.08) : Color.clear)
+            .background(isSelected ? Color.accentColor.opacity(0.25) : Color.clear)
         }
         .buttonStyle(.plain)
     }
