@@ -4,22 +4,29 @@ import AppKit
 /// Content of the MenuBarExtra popover window.
 struct MenuBarView: View {
     @EnvironmentObject var state: AppState
+    @State private var showQuitConfirmation = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            Divider()
+        ZStack {
+            VStack(spacing: 0) {
+                header
+                Divider()
 
-            if state.serverStatus.isRunning {
-                SessionListView()
-                    .frame(height: 380)
-            } else {
-                serverStatusView
-                    .frame(height: 380)
+                if state.serverStatus.isRunning {
+                    SessionListView()
+                        .frame(height: 380)
+                } else {
+                    serverStatusView
+                        .frame(height: 380)
+                }
+
+                Divider()
+                footer
             }
 
-            Divider()
-            footer
+            if showQuitConfirmation {
+                quitOverlay
+            }
         }
         .frame(width: 320)
         .background(.clear)
@@ -70,7 +77,6 @@ struct MenuBarView: View {
     private var footer: some View {
         HStack {
             Text("\(state.sessions.count) sessions")
-                .font(.caption)
                 .foregroundStyle(.tertiary)
 
             Spacer()
@@ -82,15 +88,51 @@ struct MenuBarView: View {
             .foregroundStyle(.secondary)
 
             Button("Quit") {
-                NSApplication.shared.terminate(nil)
+                showQuitConfirmation = true
             }
-            .font(.caption)
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .keyboardShortcut("q", modifiers: .command)
         }
+        .font(.callout)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    private var quitOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                Text("Quit OScar?")
+                    .font(.headline)
+                Text("The cagent server and all active sessions will be stopped.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                HStack(spacing: 12) {
+                    Button("Cancel") {
+                        showQuitConfirmation = false
+                    }
+                    .keyboardShortcut(.escape, modifiers: [])
+                    .buttonStyle(.bordered)
+
+                    Button("Quit") {
+                        NSApplication.shared.terminate(nil)
+                    }
+                    .keyboardShortcut(.return, modifiers: [])
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                }
+            }
+            .padding(24)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
+            .padding(24)
+        }
     }
 
     private var serverStatusView: some View {
