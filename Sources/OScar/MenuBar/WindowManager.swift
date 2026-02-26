@@ -100,7 +100,7 @@ final class WindowManager {
         }
         guard let state else { return }
 
-        let size = NSSize(width: 660, height: 580)
+        let size = NSSize(width: 660, height: 600)
         // Settings uses a plain titled window (no fullSizeContentView) so
         // the SwiftUI TabView tab bar is not obscured by the title area.
         let window = NSWindow(

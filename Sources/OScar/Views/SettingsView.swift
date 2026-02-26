@@ -3,29 +3,75 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var state: AppState
 
-    var body: some View {
-        TabView {
-            GeneralTab()
-                .tabItem { Label("General", systemImage: "gear") }
+    private enum Tab: String, CaseIterable {
+        case general = "General"
+        case agents  = "Agents"
+        case docker  = "Docker"
+        case update  = "Update"
+        case about   = "About"
 
-            AgentsTab()
-                .tabItem { Label("Agents", systemImage: "person.2.wave.2") }
-
-            DockerAgentTab()
-                .tabItem { Label("Docker Agent", systemImage: "shippingbox") }
-
-            UpdateTab(downloader: state.downloader) {
-                Task { await state.downloadCagent() }
+        var icon: String {
+            switch self {
+            case .general: return "gear"
+            case .agents:  return "person.2.wave.2"
+            case .docker:  return "shippingbox"
+            case .update:  return "arrow.down.circle"
+            case .about:   return "info.circle"
             }
-            .tabItem { Label("Update", systemImage: "arrow.down.circle") }
+        }
+    }
 
-            AboutTab()
-                .tabItem { Label("About", systemImage: "info.circle") }
+    @State private var selection: Tab = .general
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Tab bar — custom so it works on every macOS version
+            HStack(spacing: 0) {
+                ForEach(Tab.allCases, id: \.self) { tab in
+                    Button { selection = tab } label: {
+                        VStack(spacing: 4) {
+                            Image(systemName: tab.icon).font(.title2)
+                            Text(tab.rawValue).font(.caption)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .foregroundStyle(selection == tab ? Color.accentColor : Color.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .background(
+                        VStack(spacing: 0) {
+                            Spacer()
+                            Rectangle()
+                                .fill(selection == tab ? Color.accentColor : Color.clear)
+                                .frame(height: 2)
+                        }
+                    )
+                }
+            }
+            .background(Color(NSColor.windowBackgroundColor))
+
+            Divider()
+
+            // Content
+            ScrollView {
+                Group {
+                    switch selection {
+                    case .general: GeneralTab()
+                    case .agents:  AgentsTab()
+                    case .docker:  DockerAgentTab()
+                    case .update:
+                        UpdateTab(downloader: state.downloader) {
+                            Task { await state.downloadCagent() }
+                        }
+                    case .about:   AboutTab()
+                    }
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .top)
+            }
         }
         .environmentObject(state)
-        .padding(20)
-        .frame(width: 620)
-        .frame(minHeight: 500)
+        .frame(width: 620, height: 540)
     }
 }
 
