@@ -19,6 +19,8 @@ bundle: build
 	@mkdir -p "$(APP_BUNDLE)/Contents/Resources"
 	@cp "$(BINARY)" "$(APP_BUNDLE)/Contents/MacOS/$(APP_NAME)"
 	@cp Sources/OScar/Resources/Info.plist "$(APP_BUNDLE)/Contents/Info.plist"
+	@cp "Sources/OScar/Resources/App Icon.icns" "$(APP_BUNDLE)/Contents/Resources/AppIcon.icns"
+	@cp -r Sources/OScar/Resources/icons "$(APP_BUNDLE)/Contents/Resources/icons"
 	@echo "✓ $(APP_BUNDLE)"
 
 ## Run the debug build directly (no dock suppression — use bundle for real usage)

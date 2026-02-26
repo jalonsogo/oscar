@@ -7,26 +7,53 @@ final class MenuBarController: NSObject {
     private var statusItem: NSStatusItem!
     private var popover: NSPopover!
     private var eventMonitor: Any?
+    private var animationTimer: Timer?
+    private var animationFrame = 0
 
     private weak var windowManager: WindowManager?
+    private weak var appState: AppState?
+
+    // MARK: - Icon images (loaded once from bundle; nil when running as bare binary)
+
+    private lazy var staticIcon:   NSImage? = loadIcon("icon")
+    private lazy var disabledIcon: NSImage? = loadIcon("icon-disabled")
+    private lazy var askIcon:      NSImage? = loadIcon("icon-ask")
+    private lazy var animFrames:  [NSImage] = {
+        ["icon", "icon-2", "icon-3", "icon-4", "icon-5", "icon-6", "icon-7", "icon-8"]
+            .compactMap { loadIcon($0) }
+    }()
+
+    private func loadIcon(_ name: String) -> NSImage? {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "png", subdirectory: "icons"),
+              let img = NSImage(contentsOf: url) else { return nil }
+        img.isTemplate = true
+        img.size = NSSize(width: 18, height: 18)
+        return img
+    }
+
+    private func fallbackIcon() -> NSImage? {
+        let img = NSImage(systemSymbolName: "brain.head.profile", accessibilityDescription: "OScar")
+        img?.isTemplate = true
+        return img
+    }
+
+    // MARK: - Setup
 
     func setup(state: AppState, windowManager: WindowManager) {
         self.windowManager = windowManager
-        NSLog("[OScar] creating NSStatusItem")
+        self.appState = state
+
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.isVisible = true
         statusItem.autosaveName = "com.oscarapp.oscar.statusitem"
-        NSLog("[OScar] statusItem.button = %@", String(describing: statusItem.button))
-        updateIcon(status: state.serverStatus)
 
         if let button = statusItem.button {
-            NSLog("[OScar] configuring button")
             button.action = #selector(togglePopover)
             button.target = self
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        } else {
-            NSLog("[OScar] WARNING: button is nil!")
         }
+
+        updateIcon(status: state.serverStatus)
 
         // Popover
         popover = NSPopover()
@@ -34,8 +61,6 @@ final class MenuBarController: NSObject {
         popover.behavior = .transient
         popover.animates = true
 
-        // Use NSVisualEffectView as root so the popover gets the frosted-glass
-        // menu material instead of a plain white background.
         let hosting = NSHostingController(
             rootView: MenuBarView()
                 .environmentObject(state)
@@ -67,31 +92,67 @@ final class MenuBarController: NSObject {
             self?.closePopover()
         }
 
-        // Update icon whenever server status changes
+        // React to server status changes
         Task { @MainActor in
-            for await _ in state.$serverStatus.values {
-                self.updateIcon(status: state.serverStatus)
+            for await status in state.$serverStatus.values {
+                guard state.streamingSessions.isEmpty else { continue }
+                self.updateIcon(status: status)
+            }
+        }
+
+        // Start / stop animation based on active streaming sessions
+        Task { @MainActor in
+            for await streaming in state.$streamingSessions.values {
+                if streaming.isEmpty {
+                    self.stopAnimation()
+                } else {
+                    self.startAnimation()
+                }
             }
         }
     }
 
+    // MARK: - Icon updates
+
     func updateIcon(status: ServerStatus) {
         guard let button = statusItem?.button else { return }
+        let isDisabled: Bool
+        if case .launching = status { isDisabled = true } else { isDisabled = false }
 
-        // Try SF Symbol, fall back to text so the button is always visible
-        if let image = NSImage(systemSymbolName: "brain.head.profile", accessibilityDescription: "OScar") {
-            NSLog("[OScar] SF Symbol loaded OK")
-            image.isTemplate = true
-            button.image = image
-            button.title = ""
-        } else {
-            NSLog("[OScar] SF Symbol nil — using text fallback")
-            button.image = nil
-            button.title = "OSc"
-        }
-
-        if case .launching = status { button.appearsDisabled = true } else { button.appearsDisabled = false }
+        let image = isDisabled
+            ? (disabledIcon ?? fallbackIcon())
+            : (staticIcon   ?? fallbackIcon())
+        button.image = image
+        button.title = image == nil ? "OSc" : ""
+        button.appearsDisabled = isDisabled
     }
+
+    // MARK: - Animation
+
+    private func startAnimation() {
+        guard animationTimer == nil, !animFrames.isEmpty else { return }
+        animationFrame = 0
+        statusItem?.button?.appearsDisabled = false
+        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.advanceFrame() }
+        }
+    }
+
+    private func stopAnimation() {
+        animationTimer?.invalidate()
+        animationTimer = nil
+        if let state = appState {
+            updateIcon(status: state.serverStatus)
+        }
+    }
+
+    @MainActor private func advanceFrame() {
+        guard let button = statusItem?.button else { return }
+        button.image = animFrames[animationFrame % animFrames.count]
+        animationFrame += 1
+    }
+
+    // MARK: - Popover
 
     @objc private func togglePopover() {
         if popover.isShown {
@@ -112,6 +173,7 @@ final class MenuBarController: NSObject {
     }
 
     deinit {
+        animationTimer?.invalidate()
         if let monitor = eventMonitor {
             NSEvent.removeMonitor(monitor)
         }
