@@ -29,14 +29,16 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(Tab.allCases, id: \.self) { tab in
                     Button { selection = tab } label: {
-                        HStack(spacing: 9) {
+                        HStack(spacing: 8) {
                             Image(systemName: tab.icon)
-                                .frame(width: 16)
+                                .frame(width: 14)
                                 .foregroundStyle(selection == tab ? Color.accentColor : Color.secondary)
                             Text(tab.rawValue)
+                                .font(.system(size: 12))
+                                .lineLimit(1)
                                 .foregroundStyle(selection == tab ? Color.primary : Color.secondary)
-                            Spacer()
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 7)
                         .background(
@@ -94,9 +96,7 @@ private struct GeneralTab: View {
             Section("Agent") {
                 HStack {
                     Text("Agent name")
-                    Spacer()
                     TextField("agent", text: $agentName)
-                        .frame(maxWidth: 200)
                         .multilineTextAlignment(.trailing)
                 }
                 .help("Run mode passed to /api/sessions/{id}/agent/{name}")
@@ -133,9 +133,7 @@ private struct GeneralTab: View {
             Section("Server") {
                 HStack {
                     Text("Port")
-                    Spacer()
                     TextField("8080", value: $serverPort, format: .number)
-                        .frame(maxWidth: 80)
                         .multilineTextAlignment(.trailing)
                 }
 
@@ -379,9 +377,7 @@ private struct DockerAgentTab: View {
             Section("Sandbox Agent Suffix") {
                 HStack {
                     Text("Suffix")
-                    Spacer()
                     TextField("-box", text: $boxAgentSuffix)
-                        .frame(maxWidth: 120)
                         .multilineTextAlignment(.trailing)
                 }
                 .help("When Sandbox mode is enabled in Quick Entry, this suffix is appended to the agent name (e.g. claude → claude-box).")
@@ -696,9 +692,7 @@ struct UpdateTab: View {
 
                 HStack {
                     Text("Override path")
-                    Spacer()
                     TextField("Auto-detected", text: $cagentBinaryPath)
-                        .frame(maxWidth: 200)
                         .multilineTextAlignment(.trailing)
                     Button("Choose\u{2026}") { showBinaryPicker = true }
                     if !cagentBinaryPath.isEmpty {
