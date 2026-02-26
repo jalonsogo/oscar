@@ -100,7 +100,7 @@ final class WindowManager {
         }
         guard let state else { return }
 
-        let window = makeWindow(title: "OScar Settings", size: NSSize(width: 560, height: 580), autosaveName: "oscar-settings")
+        let window = makeWindow(title: "OScar Settings", size: NSSize(width: 660, height: 580), autosaveName: "oscar-settings")
         window.contentViewController = NSHostingController(
             rootView: SettingsView().environmentObject(state)
         )

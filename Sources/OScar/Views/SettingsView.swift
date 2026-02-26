@@ -24,7 +24,7 @@ struct SettingsView: View {
         }
         .environmentObject(state)
         .padding(20)
-        .frame(width: 540)
+        .frame(width: 620)
     }
 }
 
@@ -121,7 +121,7 @@ private struct GeneralTab: View {
     }
 
     private var sessionsFolderLabel: String {
-        if sessionsFolderPath.isEmpty { return "Home directory" }
+        if sessionsFolderPath.isEmpty { return "~/Documents/Oscar/{session_name}" }
         return (sessionsFolderPath as NSString).abbreviatingWithTildeInPath + "/{session_name}"
     }
 
@@ -206,9 +206,12 @@ private struct AgentsTab: View {
                             .font(.caption)
                     } else {
                         ForEach(discoveredAgents, id: \.path) { url in
-                            AgentRow(url: url, isActive: url.path == agentConfigPath) {
-                                agentConfigPath = url.path
-                            }
+                            AgentRow(
+                                url: url,
+                                isDefault: url.path == agentConfigPath,
+                                onSetDefault: { agentConfigPath = url.path },
+                                onClearDefault: { agentConfigPath = "" }
+                            )
                         }
                     }
                 }
@@ -264,20 +267,21 @@ private struct AgentsTab: View {
 
 private struct AgentRow: View {
     let url: URL
-    let isActive: Bool
-    let onSetActive: () -> Void
+    let isDefault: Bool
+    let onSetDefault: () -> Void
+    let onClearDefault: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 5) {
-                    if isActive {
+                    if isDefault {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(.green)
                             .font(.caption)
                     }
                     Text(url.deletingPathExtension().lastPathComponent)
-                        .fontWeight(isActive ? .semibold : .regular)
+                        .fontWeight(isDefault ? .semibold : .regular)
                 }
                 Text((url.path as NSString).abbreviatingWithTildeInPath)
                     .font(.caption)
@@ -290,8 +294,11 @@ private struct AgentRow: View {
             Button("Open") { NSWorkspace.shared.open(url) }
                 .foregroundStyle(.secondary)
 
-            if !isActive {
-                Button("Set Active") { onSetActive() }
+            if isDefault {
+                Button("Remove Default") { onClearDefault() }
+                    .foregroundStyle(.secondary)
+            } else {
+                Button("Set Default") { onSetDefault() }
             }
         }
         .padding(.vertical, 2)

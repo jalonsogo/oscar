@@ -60,7 +60,10 @@ class AppState: ObservableObject {
         UserDefaults.standard.string(forKey: "workingDir") ?? ""
     }
     var sessionsFolderPath: String {
-        UserDefaults.standard.string(forKey: "sessionsFolderPath") ?? ""
+        let stored = UserDefaults.standard.string(forKey: "sessionsFolderPath") ?? ""
+        if !stored.isEmpty { return stored }
+        return FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Documents/Oscar").path
     }
 
     // MARK: - Dependencies
