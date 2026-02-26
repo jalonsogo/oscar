@@ -69,7 +69,7 @@ final class WindowManager {
         let view = ConversationView(sessionId: sessionId, initialQuery: initialQuery, agentOverride: agentOverride)
             .environmentObject(state)
 
-        let window = makeWindow(title: "OScar", size: NSSize(width: 900, height: 700), autosaveName: "conversation-\(sessionId)")
+        let window = makeWindow(title: "OScar", size: NSSize(width: 1100, height: 700), autosaveName: "conversation-\(sessionId)")
         window.contentViewController = NSHostingController(rootView: view)
         window.title = "OScar"
 

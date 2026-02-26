@@ -1,50 +1,49 @@
 import SwiftUI
 
-/// Full conversation window for a single session.
+/// Full conversation window — sidebar on the left, chat on the right.
 struct ConversationView: View {
-    let sessionId: String
+    let initialSessionId: String
     let initialQuery: String?
-    /// Agent name override for this session (e.g. "claude", "claude-box").
-    /// When nil the global `AppState.agentName` setting is used.
+    /// Agent name override for the first session (e.g. "claude", "claude-box").
     let agentOverride: String?
 
     @EnvironmentObject var state: AppState
+
+    // Active session — can be changed by clicking the sidebar
+    @State private var currentSessionId: String
     @State private var messages: [DisplayMessage] = []
     @State private var inputText: String = ""
     @State private var isStreaming: Bool = false
     @State private var agentStatus: AgentStatus = .idle
     @State private var sessionTitle: String = "New conversation"
     @State private var tokenInfo: String = ""
-    @State private var showSwitcher: Bool = false
-    @FocusState private var isInputFocused: Bool
     @State private var streamingTask: Task<Void, Never>?
+    @FocusState private var isInputFocused: Bool
 
     init(sessionId: String, initialQuery: String? = nil, agentOverride: String? = nil) {
-        self.sessionId = sessionId
+        self.initialSessionId = sessionId
         self.initialQuery = initialQuery
         self.agentOverride = agentOverride
+        self._currentSessionId = State(initialValue: sessionId)
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            titleBar
+        HStack(spacing: 0) {
+            sidebar
             Divider()
-            messageList
-            Divider()
-            inputBar
+            VStack(spacing: 0) {
+                titleBar
+                Divider()
+                messageList
+                Divider()
+                inputBar
+            }
         }
         .background(Color(NSColor.windowBackgroundColor))
         .navigationTitle(sessionTitle)
         .onAppear {
             isInputFocused = true
-            // Load existing conversation history from the local SQLite DB
-            let history = SessionStore.loadMessages(sessionId: sessionId)
-            messages = history.map { msg in
-                DisplayMessage(
-                    role: msg.role == "user" ? .user : .assistant,
-                    content: msg.content
-                )
-            }
+            loadHistory(for: currentSessionId)
             if let query = initialQuery, !query.isEmpty {
                 inputText = query
                 Task { await send() }
@@ -52,26 +51,67 @@ struct ConversationView: View {
         }
         .onDisappear {
             streamingTask?.cancel()
-            state.markIdle(sessionId)
+            state.markIdle(currentSessionId)
         }
     }
 
-    // MARK: - Subviews
+    // MARK: - Sidebar
+
+    private var sidebar: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Sessions")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(state.sessions.count)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+
+            Divider()
+
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(state.sessions) { session in
+                        SidebarSessionRow(
+                            session: session,
+                            isSelected:  session.id == currentSessionId,
+                            isStreaming: state.streamingSessions.contains(session.id),
+                            isWaiting:   state.waitingSessions.contains(session.id)
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture { switchToSession(session.id) }
+                    }
+                }
+            }
+        }
+        .frame(width: 210)
+        .background(Color(NSColor.windowBackgroundColor))
+    }
+
+    // MARK: - Title bar
 
     private var titleBar: some View {
         HStack(spacing: 8) {
-            Text(sessionTitle)
-                .font(.headline)
-                .lineLimit(1)
-            Spacer()
-            if !tokenInfo.isEmpty {
-                Text(tokenInfo)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(sessionTitle)
+                    .font(.headline)
+                    .lineLimit(1)
+                if !tokenInfo.isEmpty {
+                    Text(tokenInfo)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
             }
+
+            Spacer()
+
             switch agentStatus {
-            case .idle:
-                EmptyView()
+            case .idle: EmptyView()
             case .thinking:
                 HStack(spacing: 4) {
                     ProgressView().scaleEffect(0.6)
@@ -83,32 +123,12 @@ struct ConversationView: View {
                     Text("Running \(name)\u{2026}").font(.caption).foregroundStyle(.orange)
                 }
             }
-
-            // Session switcher
-            if !state.sessions.isEmpty {
-                Button {
-                    showSwitcher.toggle()
-                } label: {
-                    HStack(spacing: 3) {
-                        if let idx = state.sessions.firstIndex(where: { $0.id == sessionId }) {
-                            Text("\(idx + 1) / \(state.sessions.count)")
-                                .monospacedDigit()
-                        }
-                        Image(systemName: showSwitcher ? "chevron.up" : "chevron.down")
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .popover(isPresented: $showSwitcher, arrowEdge: .top) {
-                    SessionSwitcherView(currentSessionId: sessionId)
-                        .environmentObject(state)
-                }
-            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
     }
+
+    // MARK: - Message list
 
     private var messageList: some View {
         ScrollViewReader { proxy in
@@ -126,6 +146,8 @@ struct ConversationView: View {
             }
         }
     }
+
+    // MARK: - Input bar
 
     private var inputBar: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -146,7 +168,7 @@ struct ConversationView: View {
                     streamingTask?.cancel()
                     isStreaming = false
                     agentStatus = .idle
-                    state.markIdle(sessionId)
+                    state.markIdle(currentSessionId)
                 } else {
                     Task { await send() }
                 }
@@ -166,6 +188,38 @@ struct ConversationView: View {
         return inputText.isEmpty ? .secondary : .blue
     }
 
+    // MARK: - Session switching
+
+    @MainActor
+    private func switchToSession(_ newId: String) {
+        guard newId != currentSessionId else { return }
+
+        streamingTask?.cancel()
+        state.markIdle(currentSessionId)
+
+        currentSessionId = newId
+        messages = []
+        inputText = ""
+        isStreaming = false
+        agentStatus = .idle
+        tokenInfo = ""
+
+        loadHistory(for: newId)
+        isInputFocused = true
+    }
+
+    private func loadHistory(for id: String) {
+        let history = SessionStore.loadMessages(sessionId: id)
+        messages = history.map { msg in
+            DisplayMessage(
+                role: msg.role == "user" ? .user : .assistant,
+                content: msg.content
+            )
+        }
+        sessionTitle = state.sessions.first(where: { $0.id == id })?.title
+            .nilIfEmpty ?? "New conversation"
+    }
+
     // MARK: - Scroll
 
     private func scrollToBottom(_ proxy: ScrollViewProxy) {
@@ -183,7 +237,7 @@ struct ConversationView: View {
         inputText = ""
         isStreaming = true
         agentStatus = .thinking
-        state.markStreaming(sessionId)
+        state.markStreaming(currentSessionId)
 
         messages.append(DisplayMessage(role: .user, content: text))
 
@@ -191,13 +245,12 @@ struct ConversationView: View {
         messages.append(placeholder)
         let assistantId = placeholder.id
 
+        let sid = currentSessionId
         streamingTask = Task { @MainActor in
+            // Use stored agent for this session, fall back to override or global setting
+            let agent = state.sessionAgentMap[sid] ?? agentOverride ?? state.agentName
             let chatMessages = [ChatMessage(role: "user", content: text)]
-            let stream = state.client.chat(
-                sessionId: sessionId,
-                agentName: agentOverride ?? state.agentName,
-                messages: chatMessages
-            )
+            let stream = state.client.chat(sessionId: sid, agentName: agent, messages: chatMessages)
 
             for await event in stream {
                 guard !Task.isCancelled else { break }
@@ -206,13 +259,13 @@ struct ConversationView: View {
 
             isStreaming = false
             agentStatus = .idle
-            state.markWaiting(sessionId)
+            state.markWaiting(sid)
             finishAssistantMessage(id: assistantId)
             Task { await state.loadSessions() }
         }
     }
 
-    // MARK: - Event Handling
+    // MARK: - Event handling
 
     @MainActor
     private func handleEvent(_ event: CagentEvent, assistantMsgId: UUID) {
@@ -221,23 +274,15 @@ struct ConversationView: View {
             appendToMessage(id: assistantMsgId, chunk: content)
 
         case .agentChoiceReasoning(let content):
-            // Show reasoning inline for now
             appendToMessage(id: assistantMsgId, chunk: content)
 
         case .toolCall(_, let name, let arguments):
             agentStatus = .runningTool(name)
-            messages.append(DisplayMessage(
-                role: .tool,
-                content: arguments,
-                toolName: name,
-                isStreaming: true
-            ))
+            messages.append(DisplayMessage(role: .tool, content: arguments, toolName: name, isStreaming: true))
 
         case .toolResponse(let name, let response, let isError):
             agentStatus = .thinking
-            if let idx = messages.lastIndex(where: {
-                $0.role == .tool && $0.toolName == name && $0.isStreaming
-            }) {
+            if let idx = messages.lastIndex(where: { $0.role == .tool && $0.toolName == name && $0.isStreaming }) {
                 messages[idx].content = response
                 messages[idx].isError = isError
                 messages[idx].isStreaming = false
@@ -254,21 +299,18 @@ struct ConversationView: View {
             messages.append(DisplayMessage(role: .system, content: "\u{26A0} \(message)", isError: true))
             isStreaming = false
             agentStatus = .idle
-            state.markWaiting(sessionId)
+            state.markWaiting(currentSessionId)
 
         case .maxIterationsReached:
-            messages.append(DisplayMessage(
-                role: .system,
-                content: "Maximum iterations reached."
-            ))
+            messages.append(DisplayMessage(role: .system, content: "Maximum iterations reached."))
             isStreaming = false
             agentStatus = .idle
-            state.markWaiting(sessionId)
+            state.markWaiting(currentSessionId)
 
         case .streamStopped:
             isStreaming = false
             agentStatus = .idle
-            state.markWaiting(sessionId)
+            state.markWaiting(currentSessionId)
 
         default:
             break
@@ -290,68 +332,61 @@ struct ConversationView: View {
     }
 }
 
-// MARK: - Session Switcher
+// MARK: - Sidebar row
 
-private struct SessionSwitcherView: View {
-    let currentSessionId: String
-    @EnvironmentObject var state: AppState
-    @Environment(\.dismiss) private var dismiss
+private struct SidebarSessionRow: View {
+    let session: SessionSummary
+    let isSelected: Bool
+    let isStreaming: Bool
+    let isWaiting: Bool
 
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                ForEach(Array(state.sessions.enumerated()), id: \.element.id) { index, session in
-                    Button {
-                        dismiss()
-                        if session.id != currentSessionId {
-                            state.openWindowAction?(session.id)
-                        }
-                    } label: {
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(dotColor(for: session.id))
-                                .frame(width: 7, height: 7)
+        HStack(spacing: 8) {
+            // Status dot
+            Circle()
+                .fill(statusColor)
+                .frame(width: 6, height: 6)
+                .padding(.top, 2)
 
-                            Text(session.title.isEmpty ? "Untitled" : session.title)
-                                .lineLimit(1)
-                                .fontWeight(session.id == currentSessionId ? .semibold : .regular)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(session.title.isEmpty ? "Untitled" : session.title)
+                    .font(.subheadline)
+                    .fontWeight(isSelected ? .semibold : .regular)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                            Text("\(index + 1)")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                                .monospacedDigit()
-                                .frame(width: 24, alignment: .trailing)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(
-                            session.id == currentSessionId
-                                ? Color.accentColor.opacity(0.1)
-                                : Color.clear
-                        )
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
+                HStack(spacing: 6) {
+                    Text("\(session.numMessages) msgs")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
 
-                    if index < state.sessions.count - 1 {
-                        Divider().padding(.horizontal, 8)
+                    if isStreaming {
+                        Text("Running")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    } else if isWaiting {
+                        Text("Waiting")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
                     }
                 }
             }
         }
-        .frame(width: 280)
-        .frame(maxHeight: 320)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
+        .contentShape(Rectangle())
     }
 
-    private func dotColor(for id: String) -> Color {
-        if state.streamingSessions.contains(id) { return .green }
-        if state.waitingSessions.contains(id)   { return .orange }
+    private var statusColor: Color {
+        if isStreaming { return .green }
+        if isWaiting   { return .orange }
         return Color(NSColor.tertiaryLabelColor)
     }
 }
 
-// MARK: - Agent Status
+// MARK: - Agent status
 
 enum AgentStatus {
     case idle
@@ -359,7 +394,7 @@ enum AgentStatus {
     case runningTool(String)
 }
 
-// MARK: - Message Bubble
+// MARK: - Message bubble
 
 struct MessageBubble: View {
     let message: DisplayMessage
@@ -399,20 +434,21 @@ struct MessageBubble: View {
 
     private var bubbleBackground: Color {
         switch message.role {
-        case .user:
-            return .blue
-        case .assistant:
-            return Color(NSColor.controlBackgroundColor)
-        case .tool:
-            return Color(NSColor.textBackgroundColor)
-        case .thinking:
-            return Color.purple.opacity(0.12)
-        case .system:
-            return message.isError ? Color.red.opacity(0.1) : Color.gray.opacity(0.1)
+        case .user:      return .blue
+        case .assistant: return Color(NSColor.controlBackgroundColor)
+        case .tool:      return Color(NSColor.textBackgroundColor)
+        case .thinking:  return Color.purple.opacity(0.12)
+        case .system:    return message.isError ? Color.red.opacity(0.1) : Color.gray.opacity(0.1)
         }
     }
 
     private var bubbleForeground: Color {
         message.role == .user ? .white : .primary
     }
+}
+
+// MARK: - Helpers
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }
