@@ -437,7 +437,7 @@ private struct AgentSectionRow: View {
     let sessions: [SessionSummary]
     let onDelete: (SessionSummary) -> Void
 
-    @State private var isExpanded = true
+    @State private var isExpanded = false
     @State private var hoveredSessionId: String? = nil
 
     var body: some View {
