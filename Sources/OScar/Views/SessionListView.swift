@@ -7,7 +7,7 @@ struct SessionListView: View {
     @State private var sessionToDelete: SessionSummary? = nil
     @State private var showDeleteConfirmation: Bool = false
 
-    var filtered: [SessionSummary] {
+    private var allFiltered: [SessionSummary] {
         guard !searchText.isEmpty else { return state.sessions }
         return state.sessions.filter {
             $0.title.localizedCaseInsensitiveContains(searchText) ||
@@ -15,11 +15,17 @@ struct SessionListView: View {
         }
     }
 
+    private var waitingFiltered:   [SessionSummary] { allFiltered.filter { state.waitingSessions.contains($0.id) } }
+    private var streamingFiltered: [SessionSummary] { allFiltered.filter { state.streamingSessions.contains($0.id) } }
+    private var finalizedFiltered: [SessionSummary] { allFiltered.filter {
+        !state.waitingSessions.contains($0.id) && !state.streamingSessions.contains($0.id)
+    }}
+
     var body: some View {
         VStack(spacing: 0) {
             searchBar
 
-            if filtered.isEmpty {
+            if allFiltered.isEmpty {
                 emptyState
             } else {
                 sessionList
@@ -70,41 +76,75 @@ struct SessionListView: View {
 
     private var sessionList: some View {
         ScrollView {
-            LazyVStack(spacing: 2) {
-                ForEach(filtered) { session in
-                    SessionRow(
-                        session: session,
-                        isHovered: hoveredSessionId == session.id,
-                        isStreaming: state.streamingSessions.contains(session.id),
-                        isWaiting: state.waitingSessions.contains(session.id)
-                    ) {
-                        sessionToDelete = session
-                        showDeleteConfirmation = true
-                    }
-                    .contentShape(Rectangle())
-                    .onHover { hovered in
-                        hoveredSessionId = hovered ? session.id : nil
-                    }
-                    .onTapGesture(count: 2) {
-                        state.openWindowAction?(session.id)
-                    }
-                    .contextMenu {
-                        Button("Open") { state.openWindowAction?(session.id) }
-                        Button("Copy ID") {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(session.id, forType: .string)
-                        }
-                        Divider()
-                        Button("Delete\u{2026}", role: .destructive) {
-                            sessionToDelete = session
-                            showDeleteConfirmation = true
-                        }
-                    }
+            LazyVStack(spacing: 0) {
+                // 1 — Waiting for reply
+                if !waitingFiltered.isEmpty {
+                    sectionHeader("Waiting for reply", color: .orange)
+                    rows(for: waitingFiltered)
+                }
+
+                // 2 — Running
+                if !streamingFiltered.isEmpty {
+                    if !waitingFiltered.isEmpty { groupDivider }
+                    sectionHeader("Running", color: .green)
+                    rows(for: streamingFiltered)
+                }
+
+                // 3 — Finalized
+                if !finalizedFiltered.isEmpty {
+                    if !waitingFiltered.isEmpty || !streamingFiltered.isEmpty { groupDivider }
+                    rows(for: finalizedFiltered)
                 }
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
         }
+    }
+
+    @ViewBuilder
+    private func rows(for sessions: [SessionSummary]) -> some View {
+        ForEach(sessions) { session in
+            SessionRow(
+                session: session,
+                isHovered: hoveredSessionId == session.id,
+                isStreaming: state.streamingSessions.contains(session.id),
+                isWaiting: state.waitingSessions.contains(session.id)
+            ) {
+                sessionToDelete = session
+                showDeleteConfirmation = true
+            }
+            .contentShape(Rectangle())
+            .onHover { hovered in hoveredSessionId = hovered ? session.id : nil }
+            .onTapGesture(count: 2) { state.openWindowAction?(session.id) }
+            .contextMenu {
+                Button("Open") { state.openWindowAction?(session.id) }
+                Button("Copy ID") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(session.id, forType: .string)
+                }
+                Divider()
+                Button("Delete\u{2026}", role: .destructive) {
+                    sessionToDelete = session
+                    showDeleteConfirmation = true
+                }
+            }
+        }
+    }
+
+    private func sectionHeader(_ title: String, color: Color) -> some View {
+        Text(title.uppercased())
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(color)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.top, 8)
+            .padding(.bottom, 2)
+    }
+
+    private var groupDivider: some View {
+        Divider()
+            .padding(.horizontal, 4)
+            .padding(.vertical, 6)
     }
 
     private var emptyState: some View {
