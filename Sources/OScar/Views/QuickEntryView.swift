@@ -290,7 +290,8 @@ private struct AgentPickerPopover: View {
                         groupHeader("Sandboxes")
                         ForEach(filteredSandboxes, id: \.value) { item in
                             pickerRow(label: item.display, value: item.value,
-                                      icon: "shippingbox.fill", iconColor: .orange)
+                                      icon: "shippingbox.fill", iconColor: .orange,
+                                      badge: "sandbox")
                         }
                     }
 
@@ -335,7 +336,8 @@ private struct AgentPickerPopover: View {
         label: String,
         value: String,
         icon: String,
-        iconColor: Color = .secondary
+        iconColor: Color = .secondary,
+        badge: String? = nil
     ) -> some View {
         let isSelected = selection == value
         Button { pick(value) } label: {
@@ -348,6 +350,16 @@ private struct AgentPickerPopover: View {
                     .font(.callout)
                     .foregroundStyle(Color.primary)
                     .fontWeight(isSelected ? .semibold : .regular)
+                Spacer()
+                if let badge {
+                    Text(badge)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(Capsule())
+                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
