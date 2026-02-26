@@ -37,9 +37,18 @@ struct QuickEntryView: View {
                     ProgressView().scaleEffect(0.7)
                 } else {
                     Button { Task { await create() } } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(query.isEmpty ? Color.secondary : Color.blue)
+                        ZStack {
+                            Circle()
+                                .fill(query.isEmpty
+                                      ? Color(NSColor.quaternaryLabelColor)
+                                      : Color.accentColor)
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(query.isEmpty
+                                                 ? Color(NSColor.tertiaryLabelColor)
+                                                 : .white)
+                        }
+                        .frame(width: 28, height: 28)
                     }
                     .buttonStyle(.plain)
                     .disabled(query.isEmpty)
@@ -67,6 +76,7 @@ struct QuickEntryView: View {
                     sandboxes: sandboxEntries,
                     agents: discoveredAgents
                 )
+                .fixedSize(horizontal: true, vertical: false)
 
                 optionDivider
 

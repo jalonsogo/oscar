@@ -91,14 +91,15 @@ struct MenuBarView: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
+                .symbolRenderingMode(.monochrome)
                 .font(.system(size: 13))
-                .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
+                .foregroundStyle(isActive ? Color.accentColor : Color(NSColor.secondaryLabelColor))
                 .frame(width: 28, height: 28)
                 .background(
                     RoundedRectangle(cornerRadius: 7)
                         .fill(isActive
                               ? Color.accentColor.opacity(0.12)
-                              : Color.primary.opacity(0.06))
+                              : Color(NSColor.quaternaryLabelColor))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 7)
