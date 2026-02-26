@@ -49,7 +49,7 @@ struct SettingsView: View {
                 Spacer()
             }
             .padding(8)
-            .frame(width: 150)
+            .frame(width: 120)
             .background(Color(NSColor.windowBackgroundColor))
 
             Divider()
