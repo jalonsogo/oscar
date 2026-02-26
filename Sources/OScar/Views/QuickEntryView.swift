@@ -16,9 +16,9 @@ struct QuickEntryView: View {
     var body: some View {
         VStack(spacing: 16) {
             HStack(spacing: 10) {
-                Image(systemName: "brain.head.profile")
-                    .font(.title)
-                    .foregroundStyle(Color.blue)
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .frame(width: 28, height: 28)
 
                 TextField("Ask OScar anything\u{2026}", text: $query)
                     .textFieldStyle(.plain)

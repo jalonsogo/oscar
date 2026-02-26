@@ -26,6 +26,7 @@ struct MenuBarView: View {
 
             if showQuitConfirmation {
                 quitOverlay
+                    .zIndex(1)
             }
         }
         .frame(width: 320)
@@ -128,10 +129,11 @@ struct MenuBarView: View {
                 }
             }
             .padding(24)
-            .background(.regularMaterial)
+            .background(Color(NSColor.windowBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
+            .shadow(color: .black.opacity(0.3), radius: 16, y: 6)
             .padding(24)
+            .zIndex(2)
         }
     }
 
