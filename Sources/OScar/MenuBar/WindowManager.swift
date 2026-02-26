@@ -141,7 +141,7 @@ final class WindowManager {
         quickEntryWindow = nil
 
         let window = KeyableWindow(
-            contentRect: NSRect(origin: .zero, size: NSSize(width: 580, height: 100)),
+            contentRect: NSRect(origin: .zero, size: NSSize(width: 580, height: 155)),
             styleMask: [.borderless, .fullSizeContentView],
             backing: .buffered,
             defer: false
