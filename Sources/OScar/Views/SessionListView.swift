@@ -1,31 +1,49 @@
 import SwiftUI
 
+// MARK: - Tab
+
+enum SessionTab: String, CaseIterable {
+    case all    = "All"
+    case local  = "Local"
+    case remote = "Remote"
+}
+
 /// Shows all sessions with search and actions. Lives inside the MenuBarExtra popover.
 struct SessionListView: View {
     @EnvironmentObject var state: AppState
     @State private var searchText: String = ""
+    @State private var selectedTab: SessionTab = .all
     @State private var sessionToDelete: SessionSummary? = nil
     @State private var showDeleteConfirmation: Bool = false
 
-    private var allFiltered: [SessionSummary] {
-        guard !searchText.isEmpty else { return state.sessions }
-        return state.sessions.filter {
+    /// Sessions for the active tab, filtered by search text.
+    private var tabSessions: [SessionSummary] {
+        // Remote is TBD — always empty for now.
+        guard selectedTab != .remote else { return [] }
+        // Local and All are identical until remote sessions are introduced.
+        let base = state.sessions
+        guard !searchText.isEmpty else { return base }
+        return base.filter {
             $0.title.localizedCaseInsensitiveContains(searchText) ||
             ($0.workingDir ?? "").localizedCaseInsensitiveContains(searchText)
         }
     }
 
-    private var waitingFiltered:   [SessionSummary] { allFiltered.filter { state.waitingSessions.contains($0.id) } }
-    private var streamingFiltered: [SessionSummary] { allFiltered.filter { state.streamingSessions.contains($0.id) } }
-    private var finalizedFiltered: [SessionSummary] { allFiltered.filter {
+    private var waitingFiltered:   [SessionSummary] { tabSessions.filter { state.waitingSessions.contains($0.id) } }
+    private var streamingFiltered: [SessionSummary] { tabSessions.filter { state.streamingSessions.contains($0.id) } }
+    private var finalizedFiltered: [SessionSummary] { tabSessions.filter {
         !state.waitingSessions.contains($0.id) && !state.streamingSessions.contains($0.id)
     }}
 
     var body: some View {
         VStack(spacing: 0) {
+            tabBar
+            Divider()
             searchBar
 
-            if allFiltered.isEmpty {
+            if selectedTab == .remote {
+                remotePlaceholder
+            } else if tabSessions.isEmpty {
                 emptyState
             } else {
                 sessionList
@@ -51,6 +69,70 @@ struct SessionListView: View {
     }
 
     // MARK: - Subviews
+
+    private var tabBar: some View {
+        HStack(spacing: 0) {
+            ForEach(SessionTab.allCases, id: \.self) { tab in
+                Button {
+                    selectedTab = tab
+                } label: {
+                    VStack(spacing: 4) {
+                        HStack(spacing: 4) {
+                            Text(tab.rawValue)
+                                .font(.subheadline)
+                                .fontWeight(selectedTab == tab ? .semibold : .regular)
+                                .foregroundStyle(selectedTab == tab ? Color.primary : Color.secondary)
+
+                            if tab == .remote {
+                                Text("TBD")
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundStyle(.tertiary)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(Color.secondary.opacity(0.15))
+                                    .clipShape(Capsule())
+                            } else if tab == .all {
+                                Text("\(state.sessions.count)")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundStyle(selectedTab == tab ? Color.primary : Color.secondary.opacity(0.5))
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1)
+                                    .background(selectedTab == tab ? Color.accentColor.opacity(0.15) : Color.secondary.opacity(0.1))
+                                    .clipShape(Capsule())
+                            }
+                        }
+
+                        // Active indicator line
+                        Rectangle()
+                            .fill(selectedTab == tab ? Color.accentColor : Color.clear)
+                            .frame(height: 2)
+                    }
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 8)
+            }
+        }
+        .padding(.horizontal, 8)
+    }
+
+    private var remotePlaceholder: some View {
+        VStack(spacing: 10) {
+            Spacer()
+            Image(systemName: "cloud")
+                .font(.largeTitle)
+                .foregroundStyle(.tertiary)
+            Text("Remote Sessions")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+            Text("Connect to remote cagent instances\nto see their sessions here.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            Spacer()
+        }
+    }
 
     private var searchBar: some View {
         HStack(spacing: 6) {
@@ -153,7 +235,7 @@ struct SessionListView: View {
             Image(systemName: "bubble.left.and.bubble.right")
                 .font(.largeTitle)
                 .foregroundStyle(.tertiary)
-            Text(searchText.isEmpty ? "No sessions yet" : "No results")
+            Text(searchText.isEmpty ? "No \(selectedTab.rawValue.lowercased()) sessions" : "No results")
                 .foregroundStyle(.secondary)
             Spacer()
         }
