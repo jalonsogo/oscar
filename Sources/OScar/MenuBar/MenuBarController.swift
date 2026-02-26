@@ -46,7 +46,7 @@ final class MenuBarController: NSObject {
 
         let vc = NSViewController()
         let effectView = NSVisualEffectView()
-        effectView.material = .popover
+        effectView.material = .windowBackground
         effectView.blendingMode = .behindWindow
         effectView.state = .active
         vc.view = effectView
