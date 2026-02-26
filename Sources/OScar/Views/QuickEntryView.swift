@@ -270,6 +270,7 @@ private struct AgentPickerPopover: View {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     // Default agent
                     if matches(defaultName) {
+                        groupHeader("Default")
                         pickerRow(label: defaultName, value: "", icon: "person.circle")
                     }
 
