@@ -17,6 +17,8 @@ struct ConversationView: View {
     @State private var agentStatus: AgentStatus = .idle
     @State private var sessionTitle: String = "New conversation"
     @State private var tokenInfo: String = ""
+    @State private var currentAgentName: String = ""
+    @State private var currentModelName: String = ""
     @State private var streamingTask: Task<Void, Never>?
     @FocusState private var isInputFocused: Bool
 
@@ -96,32 +98,34 @@ struct ConversationView: View {
     // MARK: - Title bar
 
     private var titleBar: some View {
-        HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
                 Text(sessionTitle)
                     .font(.headline)
                     .lineLimit(1)
-                if !tokenInfo.isEmpty {
-                    Text(tokenInfo)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+
+                Spacer()
+
+                switch agentStatus {
+                case .idle: EmptyView()
+                case .thinking:
+                    HStack(spacing: 4) {
+                        ProgressView().scaleEffect(0.6)
+                        Text("Thinking\u{2026}").font(.caption).foregroundStyle(.secondary)
+                    }
+                case .runningTool(let name):
+                    HStack(spacing: 4) {
+                        ProgressView().scaleEffect(0.6)
+                        Text("Running \(name)\u{2026}").font(.caption).foregroundStyle(.orange)
+                    }
                 }
             }
 
-            Spacer()
-
-            switch agentStatus {
-            case .idle: EmptyView()
-            case .thinking:
-                HStack(spacing: 4) {
-                    ProgressView().scaleEffect(0.6)
-                    Text("Thinking\u{2026}").font(.caption).foregroundStyle(.secondary)
-                }
-            case .runningTool(let name):
-                HStack(spacing: 4) {
-                    ProgressView().scaleEffect(0.6)
-                    Text("Running \(name)\u{2026}").font(.caption).foregroundStyle(.orange)
-                }
+            if !tokenInfo.isEmpty {
+                Text(tokenInfo)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
         }
         .padding(.horizontal, 16)
@@ -203,6 +207,8 @@ struct ConversationView: View {
         isStreaming = false
         agentStatus = .idle
         tokenInfo = ""
+        currentAgentName = ""
+        currentModelName = ""
 
         loadHistory(for: newId)
         isInputFocused = true
@@ -216,8 +222,51 @@ struct ConversationView: View {
                 content: msg.content
             )
         }
-        sessionTitle = state.sessions.first(where: { $0.id == id })?.title
-            .nilIfEmpty ?? "New conversation"
+        guard let session = state.sessions.first(where: { $0.id == id }) else { return }
+        sessionTitle = session.title.nilIfEmpty ?? "New conversation"
+
+        // Show what we have immediately from the session summary
+        let agentName = state.sessionAgentMap[id] ?? state.agentName
+        currentAgentName = agentName
+        currentModelName = ""
+        tokenInfo = buildTokenInfo(
+            agent: agentName, model: nil,
+            input: session.inputTokens, output: session.outputTokens, cost: nil
+        )
+
+        // Fetch full detail (model + cost) from the API asynchronously
+        Task { await fetchSessionMetadata(for: id) }
+    }
+
+    @MainActor
+    private func fetchSessionMetadata(for id: String) async {
+        guard let detail = try? await state.client.getSession(id) else { return }
+        guard currentSessionId == id else { return }  // Session switched while fetching
+
+        let assistantMessages = detail.messages.filter { $0.message.role == "assistant" }
+        let agentName = assistantMessages.last?.agentName?.nilIfEmpty ?? currentAgentName
+        let model = assistantMessages.last?.message.model
+        let totalCost = assistantMessages.compactMap { $0.message.cost }.reduce(0, +)
+
+        currentAgentName = agentName
+        if let model, !model.isEmpty { currentModelName = model }
+        let session = state.sessions.first(where: { $0.id == id })
+        tokenInfo = buildTokenInfo(
+            agent: currentAgentName,
+            model: currentModelName.nilIfEmpty,
+            input: session?.inputTokens ?? 0,
+            output: session?.outputTokens ?? 0,
+            cost: totalCost > 0 ? totalCost : nil
+        )
+    }
+
+    private func buildTokenInfo(agent: String, model: String?, input: Int64, output: Int64, cost: Double?) -> String {
+        var parts: [String] = []
+        if !agent.isEmpty { parts.append(agent) }
+        if let model, !model.isEmpty { parts.append(model) }
+        parts.append("\(input)\u{2191} \(output)\u{2193}")
+        if let cost, cost > 0 { parts.append(String(format: "$%.4f", cost)) }
+        return parts.joined(separator: "  \u{00B7}  ")
     }
 
     // MARK: - Scroll
@@ -249,6 +298,7 @@ struct ConversationView: View {
         streamingTask = Task { @MainActor in
             // Use stored agent for this session, fall back to override or global setting
             let agent = state.sessionAgentMap[sid] ?? agentOverride ?? state.agentName
+            currentAgentName = agent
             let chatMessages = [ChatMessage(role: "user", content: text)]
             let stream = state.client.chat(sessionId: sid, agentName: agent, messages: chatMessages)
 
@@ -270,7 +320,8 @@ struct ConversationView: View {
     @MainActor
     private func handleEvent(_ event: CagentEvent, assistantMsgId: UUID) {
         switch event {
-        case .agentChoice(let content, _):
+        case .agentChoice(let content, _, let model):
+            if let model { currentModelName = model }
             appendToMessage(id: assistantMsgId, chunk: content)
 
         case .agentChoiceReasoning(let content):
@@ -291,9 +342,12 @@ struct ConversationView: View {
         case .sessionTitle(let title, _):
             sessionTitle = title
 
-        case .tokenUsage(let input, let output, let cost):
-            let costStr = cost > 0 ? String(format: " \u{00B7} $%.4f", cost) : ""
-            tokenInfo = "\(input)\u{2191} \(output)\u{2193}\(costStr)"
+        case .tokenUsage(let input, let output, let cost, let model):
+            if let model { currentModelName = model }
+            tokenInfo = buildTokenInfo(
+                agent: currentAgentName, model: currentModelName.nilIfEmpty,
+                input: input, output: output, cost: cost > 0 ? cost : nil
+            )
 
         case .error(let message):
             messages.append(DisplayMessage(role: .system, content: "\u{26A0} \(message)", isError: true))

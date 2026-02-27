@@ -54,6 +54,13 @@ actor CagentClient {
         try validate(response)
     }
 
+    func getSession(_ id: String) async throws -> SessionDetail {
+        let url = baseURL.appendingPathComponent("api/sessions/\(id)")
+        let (data, response) = try await session.data(from: url)
+        try validate(response)
+        return try decoder.decode(SessionDetail.self, from: data)
+    }
+
     func updateTitle(sessionId: String, title: String) async throws {
         var urlRequest = URLRequest(
             url: baseURL.appendingPathComponent("api/sessions/\(sessionId)/title")

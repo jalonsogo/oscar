@@ -15,11 +15,14 @@ struct MenuBarView: View {
 
                 if state.serverStatus.isRunning {
                     SessionListView(selectedTab: $selectedTab)
-                        .frame(height: 420)
+                        .frame(height: 390)
                 } else {
                     serverStatusView
-                        .frame(height: 420)
+                        .frame(height: 390)
                 }
+
+                Divider()
+                footer
             }
 
             if showQuitConfirmation {
@@ -51,15 +54,10 @@ struct MenuBarView: View {
 
             // Action buttons
             HStack(spacing: 4) {
-                iconButton("house", isActive: selectedTab == .local) {
+                iconButton("rectangle.stack") {
                     selectedTab = .local
                 }
-                .help("Home")
-
-                iconButton("gear") {
-                    state.openSettingsAction?()
-                }
-                .help("Settings")
+                .help("Sessions")
 
                 iconButton("arrow.clockwise") {
                     Task { await state.loadSessions() }
@@ -67,43 +65,61 @@ struct MenuBarView: View {
                 .disabled(!state.serverStatus.isRunning)
                 .help("Reload sessions")
 
-                iconButton("plus") {
+                iconButton("plus", isProminent: true) {
                     NotificationCenter.default.post(name: .oscOpenQuickEntry, object: nil)
                 }
                 .disabled(!state.serverStatus.isRunning)
                 .help("New session")
-
-                iconButton("power") {
-                    showQuitConfirmation = true
-                }
-                .help("Quit OScar")
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
     }
 
+    // MARK: - Footer
+
+    private var footer: some View {
+        HStack(spacing: 4) {
+            iconButton("gear") {
+                state.openSettingsAction?()
+            }
+            .help("Settings")
+
+            Spacer()
+
+            iconButton("power") {
+                showQuitConfirmation = true
+            }
+            .help("Quit OScar")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
     @ViewBuilder
     private func iconButton(
         _ systemName: String,
         isActive: Bool = false,
+        isProminent: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
                 .symbolRenderingMode(.monochrome)
                 .font(.system(size: 13))
-                .foregroundStyle(isActive ? Color.accentColor : Color(NSColor.secondaryLabelColor))
+                .foregroundStyle(isProminent ? .white : (isActive ? Color.accentColor : Color(NSColor.secondaryLabelColor)))
                 .frame(width: 28, height: 28)
                 .background(
                     RoundedRectangle(cornerRadius: 7)
-                        .fill(isActive
-                              ? Color.accentColor.opacity(0.12)
-                              : Color(NSColor.quaternaryLabelColor))
+                        .fill(isProminent
+                              ? Color.black
+                              : (isActive
+                                 ? Color.accentColor.opacity(0.12)
+                                 : Color(NSColor.quaternaryLabelColor)))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 7)
-                        .stroke(isActive ? Color.accentColor.opacity(0.45) : Color.clear,
+                        .stroke(isActive && !isProminent ? Color.accentColor.opacity(0.45) : Color.clear,
                                 lineWidth: 1)
                 )
         }

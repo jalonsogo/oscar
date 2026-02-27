@@ -94,8 +94,7 @@ private struct GeneralTab: View {
     var body: some View {
         Form {
             Section("Agent") {
-                HStack {
-                    Text("Agent name")
+                LabeledContent("Agent name") {
                     TextField("agent", text: $agentName)
                         .multilineTextAlignment(.trailing)
                 }
@@ -131,8 +130,7 @@ private struct GeneralTab: View {
             }
 
             Section("Server") {
-                HStack {
-                    Text("Port")
+                LabeledContent("Port") {
                     TextField("8080", value: $serverPort, format: .number)
                         .multilineTextAlignment(.trailing)
                 }
@@ -375,8 +373,7 @@ private struct DockerAgentTab: View {
             }
 
             Section("Sandbox Agent Suffix") {
-                HStack {
-                    Text("Suffix")
+                LabeledContent("Suffix") {
                     TextField("-box", text: $boxAgentSuffix)
                         .multilineTextAlignment(.trailing)
                 }
@@ -690,14 +687,15 @@ struct UpdateTab: View {
                         .disabled(downloader.state.isInProgress)
                 }
 
-                HStack {
-                    Text("Override path")
-                    TextField("Auto-detected", text: $cagentBinaryPath)
-                        .multilineTextAlignment(.trailing)
-                    Button("Choose\u{2026}") { showBinaryPicker = true }
-                    if !cagentBinaryPath.isEmpty {
-                        Button("Clear") { cagentBinaryPath = "" }
-                            .foregroundStyle(Color.secondary)
+                LabeledContent("Override path") {
+                    HStack {
+                        TextField("Auto-detected", text: $cagentBinaryPath)
+                            .multilineTextAlignment(.trailing)
+                        Button("Choose\u{2026}") { showBinaryPicker = true }
+                        if !cagentBinaryPath.isEmpty {
+                            Button("Clear") { cagentBinaryPath = "" }
+                                .foregroundStyle(Color.secondary)
+                        }
                     }
                 }
                 .help("Leave empty to use the auto-downloaded or system cagent binary")

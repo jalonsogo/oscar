@@ -87,11 +87,11 @@ struct DisplayMessage: Identifiable {
 
 enum CagentEvent {
     case userMessage(content: String, sessionId: String)
-    case agentChoice(content: String, agentName: String?)
+    case agentChoice(content: String, agentName: String?, model: String?)
     case agentChoiceReasoning(content: String)
     case toolCall(id: String?, name: String, arguments: String)
     case toolResponse(name: String, response: String, isError: Bool)
-    case tokenUsage(input: Int64, output: Int64, cost: Double)
+    case tokenUsage(input: Int64, output: Int64, cost: Double, model: String?)
     case sessionTitle(title: String, sessionId: String)
     case streamStarted
     case streamStopped
@@ -112,9 +112,10 @@ struct AgentChoiceEvent: Decodable {
     let type: String
     let content: String
     let agentName: String?
+    let model: String?
 
     enum CodingKeys: String, CodingKey {
-        case type, content
+        case type, content, model
         case agentName = "agent_name"
     }
 }
@@ -184,11 +185,12 @@ struct TokenUsageEvent: Decodable {
         let inputTokens: Int64?
         let outputTokens: Int64?
         let cost: Double?
+        let model: String?
 
         enum CodingKeys: String, CodingKey {
             case inputTokens = "input_tokens"
             case outputTokens = "output_tokens"
-            case cost
+            case cost, model
         }
     }
 
@@ -221,6 +223,33 @@ struct ElicitationRequestEvent: Decodable {
         case type, message
         case elicitationId = "elicitation_id"
     }
+}
+
+// MARK: - Session Detail (GET /api/sessions/{id})
+
+struct SessionDetail: Decodable {
+    let id: String
+    let title: String
+    let messages: [SessionMessageWrapper]
+    let inputTokens: Int64?
+    let outputTokens: Int64?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, messages
+        case inputTokens = "input_tokens"
+        case outputTokens = "output_tokens"
+    }
+}
+
+struct SessionMessageWrapper: Decodable {
+    let agentName: String?
+    let message: SessionMessageContent
+}
+
+struct SessionMessageContent: Decodable {
+    let role: String
+    let model: String?
+    let cost: Double?
 }
 
 // MARK: - Server Status

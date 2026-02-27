@@ -7,10 +7,12 @@
 ## What it does
 
 - **Menu bar icon** — click to see your sessions list and start new conversations
-- **Quick Entry** (`⌘Space` or the `+` button) — floating prompt box, type a question and press Enter
+- **Quick Entry** — floating prompt box with a searchable agent picker; type a question and press Enter
 - **Streaming conversation window** — real-time SSE responses with tool calls, token usage, and session titles
 - **Spotlight integration** — sessions appear in `⌘Space` search; say "Ask Oscar about X"
 - **Session persistence** — shares `~/.cagent/session.db` with the `cagent` CLI
+- **Multi-agent support** — switch between a folder of agent YAML configs directly from Quick Entry
+- **Docker sandbox mode** — run cagent inside a Docker sandbox via `docker sandbox run`
 
 ## Prerequisites
 
@@ -20,6 +22,7 @@
 | Xcode / Swift toolchain | Xcode 15+ or Swift 5.9+ |
 | [cagent](https://github.com/docker/cagent) | v1.23+ (`brew install docker/tap/cagent`) |
 | LLM API key | e.g. `ANTHROPIC_API_KEY` in your environment |
+| Docker Desktop *(optional)* | Required only for Docker sandbox mode |
 
 ## Quick start
 
@@ -62,6 +65,34 @@ agents:
 
 Change `model` to any provider/model supported by cagent (e.g. `openai/gpt-4o`, `google/gemini-2.0-flash`).
 
+## Multi-agent support
+
+Point OScar at a folder of `.yaml` agent configs in **Settings → Agents**. The Quick Entry window will show a searchable dropdown with three groups:
+
+- **Default** — the single config set in Settings → General
+- **Sandboxes** — Docker sandbox variants (e.g. `claude-box`, `codex-box`) built from the box-agent suffix
+- **Agents** — all `.yaml` files discovered in your agents folder
+
+Selecting a sandbox or custom agent from the dropdown routes that session through the chosen config.
+
+## Docker sandbox mode
+
+Enable **Settings → Docker → Sandbox server mode** to launch cagent inside a Docker sandbox (`docker sandbox run --publish 127.0.0.1:<port>:8080 cagent`). This isolates tool calls (shell, filesystem) inside a container.
+
+- Requires Docker Desktop to be installed and running.
+- Enable **--yolo** to skip Docker's confirmation prompts for destructive operations.
+
+Example Docker toolset config:
+
+```yaml
+toolsets:
+  - type: docker
+  - type: mcp
+    ref: docker:duckduckgo
+  - type: mcp
+    ref: docker:brave-search
+```
+
 ## Build commands
 
 ```bash
@@ -77,15 +108,32 @@ make clean          # remove .build/
 
 ## Settings
 
-Open Settings from the menu bar popover footer. All values are stored in `UserDefaults`.
+Open Settings from the gear icon in the menu bar popover footer. All values are stored in `UserDefaults`.
+
+### General
 
 | Setting | Default | Description |
 |---------|---------|-------------|
 | Agent name | `agent` | Run mode passed to the cagent API (`/agent/{name}`) |
-| Config file | `~/.config/oscar/agent.yaml` | Path to your cagent YAML config |
+| Config file | `~/.config/oscar/agent.yaml` | Path to your default cagent YAML config |
+| Sessions folder | — | Folder for session storage (optional override) |
 | Working dir | `~` | Default working directory for new sessions |
 | cagent binary | `/usr/local/bin/cagent` | Path to the cagent executable |
 | Port | `8080` | Port for the cagent API server |
+
+### Agents
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Agents folder | — | Folder of `.yaml` agent configs shown in Quick Entry |
+
+### Docker
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Box-agent suffix | `-box` | Suffix appended to sandbox agent names (e.g. `claude-box`) |
+| Sandbox server mode | off | Launch cagent via `docker sandbox run` |
+| --yolo | off | Skip Docker confirmation prompts |
 
 ## Architecture
 
@@ -93,7 +141,7 @@ Open Settings from the menu bar popover footer. All values are stored in `UserDe
 AppDelegate
 ├── AppState (@MainActor ObservableObject)
 │   ├── CagentClient (actor) — REST + SSE via URLSession
-│   ├── CagentProcess        — manages `cagent api` subprocess
+│   ├── CagentProcess        — manages `cagent api` or `docker sandbox run` subprocess
 │   └── SpotlightIndexer     — CSSearchableItem per session
 ├── MenuBarController        — NSStatusItem + NSPopover
 └── WindowManager            — creates/tracks NSWindow instances

@@ -202,6 +202,11 @@ struct SessionListView: View {
         }
     }
 
+    private func isSandboxSession(_ session: SessionSummary) -> Bool {
+        guard let agent = state.sessionAgentMap[session.id] else { return false }
+        return agent.hasSuffix(boxAgentSuffix)
+    }
+
     @ViewBuilder
     private func rows(for sessions: [SessionSummary]) -> some View {
         ForEach(sessions) { session in
@@ -209,7 +214,8 @@ struct SessionListView: View {
                 session: session,
                 isHovered: hoveredSessionId == session.id,
                 isStreaming: state.streamingSessions.contains(session.id),
-                isWaiting: state.waitingSessions.contains(session.id)
+                isWaiting: state.waitingSessions.contains(session.id),
+                isSandbox: isSandboxSession(session)
             ) {
                 sessionToDelete = session
                 showDeleteConfirmation = true
@@ -286,6 +292,13 @@ struct SessionListView: View {
                         Text("Set an agents folder in Settings\nto see your agents here.")
                             .font(.caption).foregroundStyle(.tertiary)
                             .multilineTextAlignment(.center).padding(.horizontal)
+                        emptyActionButton("Open Settings") {
+                            state.openSettingsAction?()
+                        }
+                        Button("View Local Sessions") { selectedTab = .local }
+                            .buttonStyle(.plain)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         Spacer().frame(height: 20)
                     }
                 } else {
@@ -315,28 +328,52 @@ struct SessionListView: View {
     // MARK: - Placeholders
 
     private var remotePlaceholder: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             Spacer()
             Image(systemName: "cloud").font(.largeTitle).foregroundStyle(.tertiary)
             Text("Remote Sessions").font(.headline).foregroundStyle(.secondary)
             Text("Connect to remote cagent instances\nto see their sessions here.")
                 .font(.caption).foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center).padding(.horizontal)
+            emptyActionButton("+ Add Remote Session") {
+                state.openSettingsAction?()
+            }
             Spacer()
         }
     }
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 12) {
             Spacer()
-            Image(systemName: "bubble.left.and.bubble.right")
+            Image(systemName: selectedTab == .sandboxes ? "shippingbox" : "bubble.left.and.bubble.right")
                 .font(.largeTitle).foregroundStyle(.tertiary)
             Text(searchText.isEmpty
                  ? "No \(selectedTab.rawValue.lowercased()) sessions"
                  : "No results")
                 .foregroundStyle(.secondary)
+            if searchText.isEmpty {
+                let label = selectedTab == .sandboxes ? "+ New Sandbox Session" : "+ New Session"
+                emptyActionButton(label) {
+                    NotificationCenter.default.post(name: .oscOpenQuickEntry, object: nil)
+                }
+            }
             Spacer()
         }
+    }
+
+    @ViewBuilder
+    private func emptyActionButton(_ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.headline)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+                .background(Color.black)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 4)
     }
 }
 
@@ -367,6 +404,7 @@ struct SessionRow: View {
     let isHovered: Bool
     let isStreaming: Bool
     let isWaiting: Bool
+    var isSandbox: Bool = false
     let onDelete: () -> Void
 
     var body: some View {
@@ -379,6 +417,19 @@ struct SessionRow: View {
                         SessionStatusDot(status: .streaming)
                     } else if isWaiting {
                         SessionStatusDot(status: .waiting)
+                    }
+                    if isSandbox {
+                        HStack(spacing: 3) {
+                            Image(systemName: "shippingbox.fill")
+                                .font(.system(size: 8))
+                            Text("sandbox")
+                                .font(.caption2.weight(.medium))
+                        }
+                        .foregroundStyle(.orange)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.orange.opacity(0.12))
+                        .clipShape(Capsule())
                     }
                 }
 
@@ -479,6 +530,7 @@ private struct AgentSectionRow: View {
                             isHovered: hoveredSessionId == session.id,
                             isStreaming: state.streamingSessions.contains(session.id),
                             isWaiting: state.waitingSessions.contains(session.id),
+                            isSandbox: state.sessionAgentMap[session.id]?.hasSuffix("-box") == true,
                             onDelete: { onDelete(session) }
                         )
                         .padding(.leading, 12)

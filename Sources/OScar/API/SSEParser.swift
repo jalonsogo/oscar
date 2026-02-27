@@ -21,7 +21,7 @@ enum SSEParser {
         switch type {
         case "agent_choice":
             if let e = try? decoder.decode(AgentChoiceEvent.self, from: data) {
-                return .agentChoice(content: e.content, agentName: e.agentName)
+                return .agentChoice(content: e.content, agentName: e.agentName, model: e.model)
             }
 
         case "agent_choice_reasoning":
@@ -57,7 +57,8 @@ enum SSEParser {
                 return .tokenUsage(
                     input: e.usage?.inputTokens ?? 0,
                     output: e.usage?.outputTokens ?? 0,
-                    cost: e.usage?.cost ?? 0
+                    cost: e.usage?.cost ?? 0,
+                    model: e.usage?.model
                 )
             }
 

@@ -78,7 +78,7 @@ struct QuickEntryView: View {
                 )
                 .fixedSize(horizontal: true, vertical: false)
 
-                optionDivider
+                Spacer()
 
                 // Local / Remote toggle
                 HStack(spacing: 0) {
@@ -87,8 +87,6 @@ struct QuickEntryView: View {
                 }
                 .background(Color.primary.opacity(0.06))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
-
-                Spacer()
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
