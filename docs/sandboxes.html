@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Sandboxes — OScar Docs</title>
+	<style>
+		*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+		:root {
+			--black: #0a0a0a;
+			--white: #f5f5f0;
+			--gray:  #888;
+			--orange: #e8702a;
+			--border: 1px solid currentColor;
+			--mono: 'Courier New', Courier, monospace;
+		}
+
+		html, body {
+			background: var(--black);
+			color: var(--white);
+			font-family: var(--mono);
+		}
+
+		nav {
+			display: flex;
+			align-items: center;
+			gap: 2rem;
+			padding: 0.9rem 2rem;
+			border-bottom: var(--border);
+			font-size: 0.82rem;
+			text-transform: uppercase;
+			letter-spacing: 0.15em;
+		}
+		nav a { color: var(--gray); text-decoration: none; transition: color 0.15s; }
+		nav a:hover { color: var(--white); }
+		nav a.active { color: var(--white); }
+		.nav-brand { color: var(--white); font-size: 1rem; letter-spacing: 0.05em; margin-right: auto; }
+
+		.page-header {
+			padding: 4rem 2rem 2.5rem;
+			border-bottom: var(--border);
+		}
+		.page-label {
+			font-size: 0.78rem;
+			text-transform: uppercase;
+			letter-spacing: 0.2em;
+			color: var(--gray);
+			margin-bottom: 0.8rem;
+		}
+		.page-title {
+			font-size: clamp(2rem, 6vw, 4rem);
+			font-weight: 400;
+			line-height: 1.05;
+			letter-spacing: -0.02em;
+		}
+		.page-lead {
+			margin-top: 1.2rem;
+			font-size: 1.05rem;
+			color: var(--gray);
+			max-width: 60ch;
+			line-height: 1.75;
+		}
+
+		.content {
+			max-width: 900px;
+			margin: 0 auto;
+			padding: 0 2rem 4rem;
+		}
+
+		.section {
+			border-bottom: var(--border);
+			border-color: #222;
+			padding: 2.5rem 0;
+		}
+		.section:last-child { border-bottom: none; }
+
+		.section-label {
+			font-size: 0.74rem;
+			text-transform: uppercase;
+			letter-spacing: 0.2em;
+			color: var(--gray);
+			margin-bottom: 1rem;
+		}
+
+		h2 {
+			font-size: 1.5rem;
+			font-weight: 400;
+			margin-bottom: 1rem;
+			line-height: 1.3;
+		}
+
+		p {
+			font-size: 1.05rem;
+			color: var(--gray);
+			line-height: 1.75;
+			margin-bottom: 0.8rem;
+		}
+		p:last-child { margin-bottom: 0; }
+
+		code, pre {
+			font-family: var(--mono);
+			font-size: 0.97rem;
+			background: #111;
+			border: 1px solid #222;
+			color: var(--white);
+			letter-spacing: 0.04em;
+		}
+		code { padding: 0.15rem 0.4rem; }
+		pre {
+			padding: 1rem 1.2rem;
+			overflow-x: auto;
+			margin: 1rem 0;
+			line-height: 1.6;
+		}
+
+		.sandbox-badge {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.4rem;
+			font-size: 0.82rem;
+			text-transform: uppercase;
+			letter-spacing: 0.15em;
+			color: var(--orange);
+			border: 1px solid var(--orange);
+			padding: 0.2rem 0.5rem;
+			margin-bottom: 1rem;
+		}
+
+		.note {
+			margin-top: 1rem;
+			padding: 0.9rem 1.2rem;
+			background: #111;
+			border-left: 2px solid #333;
+			font-size: 0.97rem;
+			color: var(--gray);
+			line-height: 1.65;
+		}
+		.note.warn { border-left-color: var(--orange); }
+		.note strong { color: var(--white); }
+
+		.table-wrap { overflow-x: auto; margin: 1rem 0; }
+		table { width: 100%; border-collapse: collapse; font-size: 0.97rem; }
+		th, td { text-align: left; padding: 0.6rem 0.9rem; border: 1px solid #222; }
+		th { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--gray); background: #111; }
+		td { color: var(--gray); }
+		td:first-child { color: var(--white); }
+
+		a { color: var(--white); }
+		a:hover { color: var(--gray); }
+
+		footer {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 1.2rem 2rem;
+			border-top: var(--border);
+			font-size: 0.9rem;
+			color: var(--gray);
+		}
+		footer a { color: var(--gray); text-decoration: none; }
+		footer a:hover { color: var(--white); }
+	</style>
+</head>
+<body>
+
+<nav>
+	<a href="index.html" class="nav-brand">OScar</a>
+	<a href="first-steps.html">First Steps</a>
+	<a href="agents.html">Agents</a>
+	<a href="usage.html">Usage</a>
+	<a href="sandboxes.html" class="active">Sandboxes</a>
+</nav>
+
+<div class="page-header">
+	<div class="page-label">Documentation</div>
+	<h1 class="page-title">Sandboxes</h1>
+	<p class="page-lead">Run agents inside an isolated Docker environment so shell commands and file operations can't affect your host machine. Ideal for untrusted code, experiments, and autonomous tasks.</p>
+</div>
+
+<div class="content">
+
+	<div class="section">
+		<div class="section-label">01 — What is a sandbox</div>
+		<h2>Isolated execution via Docker Desktop</h2>
+		<div class="sandbox-badge">⬡ Sandbox</div>
+		<p>A sandboxed agent runs inside a Docker container managed by Docker Desktop's sandbox feature. The container has its own filesystem, network stack, and process namespace. Even if the agent runs <code>rm -rf /</code>, your host is untouched.</p>
+		<p>cagent starts and manages the container automatically when you pick a sandbox agent. No manual <code>docker run</code> needed.</p>
+		<div class="note"><strong>Prerequisite:</strong> <a href="https://www.docker.com/products/docker-desktop/">Docker Desktop</a> must be installed and running. Sandbox agents show an orange box icon in the OScar picker.</div>
+	</div>
+
+	<div class="section">
+		<div class="section-label">02 — Picking a sandbox agent</div>
+		<h2>The -box suffix in Quick Entry</h2>
+		<p>OScar's agent picker groups sandbox variants separately. By default four presets are available:</p>
+		<div class="table-wrap">
+			<table>
+				<thead>
+					<tr><th>Label</th><th>cagent agent name</th><th>Model</th></tr>
+				</thead>
+				<tbody>
+					<tr><td>Cagent-box</td><td>cagent-box</td><td>Configured in your agent YAML</td></tr>
+					<tr><td>Claude-box</td><td>claude-box</td><td>Claude (Anthropic)</td></tr>
+					<tr><td>Codex-box</td><td>codex-box</td><td>GPT-4o (OpenAI)</td></tr>
+					<tr><td>Gemini-box</td><td>gemini-box</td><td>Gemini (Google)</td></tr>
+				</tbody>
+			</table>
+		</div>
+		<p>The suffix is configurable in <strong>Settings → General → Sandbox Suffix</strong> (default: <code>-box</code>). Change it if your cagent YAML uses a different naming convention.</p>
+	</div>
+
+	<div class="section">
+		<div class="section-label">03 — How it works</div>
+		<h2>Under the hood</h2>
+		<p>When cagent runs a sandbox agent it starts a Docker container from a base image that includes common tools (git, curl, node, python, etc.). The agent's shell and filesystem tools execute inside the container, not on your host.</p>
+		<p>Your current working directory is bind-mounted into the container at <code>/workspace</code> by default — so the agent can read and write your project files while remaining contained.</p>
+		<pre># What the agent sees
+/workspace/        → your project directory (bind mount)
+/tmp/              → ephemeral, lost when session ends
+~/.config/         → NOT mounted, agent can't read your host config</pre>
+		<div class="note warn"><strong>Network access:</strong> Sandbox containers can reach the internet by default. To restrict network access, configure Docker Desktop's network policies or use cagent's <code>--no-network</code> flag when launching.</div>
+	</div>
+
+	<div class="section">
+		<div class="section-label">04 — Yolo mode</div>
+		<h2>Auto-approving all tool calls</h2>
+		<p>By default, cagent pauses before destructive tool calls and waits for approval. In sandbox mode you can enable <em>yolo mode</em> to auto-approve everything — safe because the container contains the blast radius.</p>
+		<pre>cagent api agent-box.yaml --listen 127.0.0.1:8080 --yolo</pre>
+		<p>With <code>--yolo</code>, the agent runs fully autonomously. Use this for batch tasks you've already reviewed or for CI-style pipelines where human interruption isn't practical.</p>
+		<div class="note"><strong>Never use --yolo outside a sandbox.</strong> Without container isolation, auto-approving all tool calls means the agent can delete files, install packages, or make network requests without any human checkpoint.</div>
+	</div>
+
+	<div class="section">
+		<div class="section-label">05 — Creating a sandbox agent YAML</div>
+		<h2>Writing your own -box config</h2>
+		<p>A sandbox agent YAML is identical to a normal agent YAML, but you name it with the <code>-box</code> suffix so OScar places it in the Sandboxes group.</p>
+		<pre># ~/.config/oscar/agents/my-agent-box.yaml
+model: claude-sonnet-4-5
+system: |
+  You are working inside a Docker sandbox.
+  You may run shell commands freely.
+tools:
+  - shell
+  - filesystem
+sandbox: true</pre>
+		<p>The <code>sandbox: true</code> key tells cagent to wrap execution in a container. See the full option reference at <a href="https://docs.docker.com/ai/sandboxes/">docs.docker.com/ai/sandboxes</a>.</p>
+	</div>
+
+	<div class="section">
+		<div class="section-label">06 — Further reading</div>
+		<h2>Official Docker documentation</h2>
+		<p>The Docker documentation covers sandbox configuration in depth, including custom base images, volume mounts, resource limits, and network policies.</p>
+		<p>→ <a href="https://docs.docker.com/ai/sandboxes/">Docker AI Sandboxes reference</a><br>
+		   → <a href="https://docs.docker.com/ai/cagent/">cagent full configuration reference</a></p>
+	</div>
+
+</div>
+
+<footer>
+	<span>OScar Docs</span>
+	<a href="https://github.com/jalonsogo/oscar">GitHub ↗</a>
+</footer>
+
+</body>
+</html>

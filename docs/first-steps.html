@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>First Steps — OScar Docs</title>
+	<style>
+		*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+		:root {
+			--black: #0a0a0a;
+			--white: #f5f5f0;
+			--gray:  #888;
+			--border: 1px solid currentColor;
+			--mono: 'Courier New', Courier, monospace;
+		}
+
+		html, body {
+			background: var(--black);
+			color: var(--white);
+			font-family: var(--mono);
+		}
+
+		/* NAV */
+		nav {
+			display: flex;
+			align-items: center;
+			gap: 2rem;
+			padding: 0.9rem 2rem;
+			border-bottom: var(--border);
+			font-size: 0.82rem;
+			text-transform: uppercase;
+			letter-spacing: 0.15em;
+		}
+		nav a { color: var(--gray); text-decoration: none; transition: color 0.15s; }
+		nav a:hover { color: var(--white); }
+		nav a.active { color: var(--white); }
+		.nav-brand { color: var(--white); font-size: 1rem; letter-spacing: 0.05em; margin-right: auto; }
+
+		/* PAGE HEADER */
+		.page-header {
+			padding: 4rem 2rem 2.5rem;
+			border-bottom: var(--border);
+		}
+		.page-label {
+			font-size: 0.78rem;
+			text-transform: uppercase;
+			letter-spacing: 0.2em;
+			color: var(--gray);
+			margin-bottom: 0.8rem;
+		}
+		.page-title {
+			font-size: clamp(2rem, 6vw, 4rem);
+			font-weight: 400;
+			line-height: 1.05;
+			letter-spacing: -0.02em;
+		}
+		.page-lead {
+			margin-top: 1.2rem;
+			font-size: 1.05rem;
+			color: var(--gray);
+			max-width: 60ch;
+			line-height: 1.75;
+		}
+
+		/* CONTENT GRID */
+		.content {
+			max-width: 900px;
+			margin: 0 auto;
+			padding: 0 2rem 4rem;
+		}
+
+		.section {
+			border-bottom: var(--border);
+			border-color: #222;
+			padding: 2.5rem 0;
+		}
+		.section:last-child { border-bottom: none; }
+
+		.section-label {
+			font-size: 0.74rem;
+			text-transform: uppercase;
+			letter-spacing: 0.2em;
+			color: var(--gray);
+			margin-bottom: 1rem;
+		}
+
+		h2 {
+			font-size: 1.5rem;
+			font-weight: 400;
+			margin-bottom: 1rem;
+			line-height: 1.3;
+		}
+
+		p {
+			font-size: 1.05rem;
+			color: var(--gray);
+			line-height: 1.75;
+			margin-bottom: 0.8rem;
+		}
+		p:last-child { margin-bottom: 0; }
+
+		code, pre {
+			font-family: var(--mono);
+			font-size: 0.97rem;
+			background: #111;
+			border: 1px solid #222;
+			color: var(--white);
+			letter-spacing: 0.04em;
+		}
+		code { padding: 0.15rem 0.4rem; }
+		pre {
+			padding: 1rem 1.2rem;
+			overflow-x: auto;
+			margin: 1rem 0;
+			line-height: 1.6;
+		}
+
+		.steps {
+			display: flex;
+			flex-direction: column;
+			gap: 0;
+		}
+
+		.step {
+			display: grid;
+			grid-template-columns: 2.5rem 1fr;
+			gap: 1.2rem;
+			padding: 1.5rem 0;
+			border-bottom: 1px solid #1a1a1a;
+		}
+		.step:last-child { border-bottom: none; }
+
+		.step-num {
+			font-size: 0.78rem;
+			color: var(--gray);
+			padding-top: 0.15rem;
+			letter-spacing: 0.1em;
+		}
+
+		.step-body h3 {
+			font-size: 1.05rem;
+			font-weight: 400;
+			margin-bottom: 0.5rem;
+		}
+
+		.note {
+			margin-top: 1rem;
+			padding: 0.9rem 1.2rem;
+			background: #111;
+			border-left: 2px solid #333;
+			font-size: 0.97rem;
+			color: var(--gray);
+			line-height: 1.65;
+		}
+		.note strong { color: var(--white); }
+
+		a { color: var(--white); }
+		a:hover { color: var(--gray); }
+
+		footer {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 1.2rem 2rem;
+			border-top: var(--border);
+			font-size: 0.9rem;
+			color: var(--gray);
+		}
+		footer a { color: var(--gray); text-decoration: none; }
+		footer a:hover { color: var(--white); }
+	</style>
+</head>
+<body>
+
+<nav>
+	<a href="index.html" class="nav-brand">OScar</a>
+	<a href="first-steps.html" class="active">First Steps</a>
+	<a href="agents.html">Agents</a>
+	<a href="usage.html">Usage</a>
+	<a href="sandboxes.html">Sandboxes</a>
+</nav>
+
+<div class="page-header">
+	<div class="page-label">Documentation</div>
+	<h1 class="page-title">First Steps</h1>
+	<p class="page-lead">Get OScar running in under five minutes. You'll install the app, connect a language model, and send your first message.</p>
+</div>
+
+<div class="content">
+
+	<div class="section">
+		<div class="section-label">01 — Prerequisites</div>
+		<h2>What you need before starting</h2>
+		<p>OScar requires macOS 13 Ventura or later and an API key for at least one supported LLM provider.</p>
+		<p>Supported providers: Anthropic (Claude), OpenAI, Google (Gemini). The key is set as an environment variable — OScar never stores it on disk.</p>
+		<pre>export ANTHROPIC_API_KEY="sk-ant-..."
+# or
+export OPENAI_API_KEY="sk-..."
+# or
+export GOOGLE_API_KEY="..."</pre>
+		<p>Add the export to your shell profile (<code>~/.zshrc</code>, <code>~/.bash_profile</code>) so it persists across reboots.</p>
+	</div>
+
+	<div class="section">
+		<div class="section-label">02 — Install OScar</div>
+		<h2>Download and launch the app</h2>
+		<div class="steps">
+			<div class="step">
+				<div class="step-num">01.</div>
+				<div class="step-body">
+					<h3>Download the latest release</h3>
+					<p>Grab the <code>OScar.app.zip</code> from the <a href="https://github.com/jalonsogo/oscar/releases">Releases page</a> on GitHub. Unzip and move OScar.app to your Applications folder.</p>
+				</div>
+			</div>
+			<div class="step">
+				<div class="step-num">02.</div>
+				<div class="step-body">
+					<h3>Launch OScar</h3>
+					<p>Double-click OScar.app. A small icon appears in the menu bar — OScar runs entirely as a menu bar app with no Dock entry.</p>
+				</div>
+			</div>
+			<div class="step">
+				<div class="step-num">03.</div>
+				<div class="step-body">
+					<h3>Install cagent via the Settings UI</h3>
+					<p>Open Settings (click the menu bar icon → Settings). On the Update tab, click <strong>Install cagent</strong>. OScar downloads and installs the <code>cagent</code> binary automatically via Homebrew.</p>
+					<div class="note"><strong>Manual install:</strong> If you prefer, run <code>brew install docker/tap/cagent</code> in Terminal. Requires <a href="https://brew.sh">Homebrew</a>.</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="section">
+		<div class="section-label">03 — Create an agent config</div>
+		<h2>Your first agent.yaml</h2>
+		<p>cagent is driven by a YAML configuration file that declares which model and tools the agent can use. OScar ships with a template you can generate from the command line:</p>
+		<pre>make init-config
+# writes ~/.config/oscar/agent.yaml</pre>
+		<p>A minimal config looks like this:</p>
+		<pre>model: claude-sonnet-4-5
+tools:
+  - shell
+  - filesystem</pre>
+		<p>Point OScar at your config in <strong>Settings → General → Agent Config Path</strong>. See the <a href="agents.html">Agents</a> page for the full reference.</p>
+	</div>
+
+	<div class="section">
+		<div class="section-label">04 — Send your first message</div>
+		<h2>Open Quick Entry and ask something</h2>
+		<div class="steps">
+			<div class="step">
+				<div class="step-num">01.</div>
+				<div class="step-body">
+					<h3>Open Quick Entry</h3>
+					<p>Press <code>⌥⌘O</code> (Option + Command + O) from anywhere. A floating window appears — type your question and press Return.</p>
+				</div>
+			</div>
+			<div class="step">
+				<div class="step-num">02.</div>
+				<div class="step-body">
+					<h3>Watch the stream</h3>
+					<p>A conversation window opens. Tokens stream in real time. Tool calls (shell commands, file reads) appear inline as they execute.</p>
+				</div>
+			</div>
+			<div class="step">
+				<div class="step-num">03.</div>
+				<div class="step-body">
+					<h3>Continue the conversation</h3>
+					<p>Type follow-up messages at the bottom of the window. Sessions persist — find them by clicking the menu bar icon or via Spotlight (<code>⌘Space</code>).</p>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="section">
+		<div class="section-label">Next</div>
+		<h2>Where to go from here</h2>
+		<p>Configure a custom agent with specific tools and models on the <a href="agents.html">Agents</a> page. Learn about keyboard shortcuts and Spotlight integration on the <a href="usage.html">Usage</a> page. Run agents in an isolated Docker environment on the <a href="sandboxes.html">Sandboxes</a> page.</p>
+	</div>
+
+</div>
+
+<footer>
+	<span>OScar Docs</span>
+	<a href="https://github.com/jalonsogo/oscar">GitHub ↗</a>
+</footer>
+
+</body>
+</html>

@@ -39,6 +39,14 @@
 			/* scene fills the hero */
 		}
 
+		/* On touch devices, let vertical scroll pass through the 3D scene */
+		@media (pointer: coarse) {
+			#scene, #scene canvas {
+				touch-action: pan-y;
+				pointer-events: none;
+			}
+		}
+
 		.hero-text {
 			position: relative;
 			z-index: 10;
@@ -74,7 +82,7 @@
 			border-bottom: var(--border);
 			overflow: hidden;
 			white-space: nowrap;
-			font-size: 0.72rem;
+			font-size: 0.85rem;
 			text-transform: uppercase;
 			letter-spacing: 0.2em;
 			color: var(--gray);
@@ -109,7 +117,7 @@
 		.cell:last-child { border-right: none; }
 
 		.cell-label {
-			font-size: 0.6rem;
+			font-size: 0.72rem;
 			text-transform: uppercase;
 			letter-spacing: 0.2em;
 			color: var(--gray);
@@ -117,16 +125,16 @@
 		}
 
 		.cell-title {
-			font-size: 1.1rem;
+			font-size: 1.35rem;
 			font-weight: 400;
 			line-height: 1.3;
 			margin-bottom: 0.8rem;
 		}
 
 		.cell-body {
-			font-size: 0.78rem;
+			font-size: 0.95rem;
 			color: var(--gray);
-			line-height: 1.7;
+			line-height: 1.75;
 		}
 
 		/* ── INSTALL BLOCK ────────────────────────────────────────────── */
@@ -165,7 +173,7 @@
 		}
 
 		.step-num {
-			font-size: 0.6rem;
+			font-size: 0.72rem;
 			color: var(--gray);
 			flex-shrink: 0;
 			letter-spacing: 0.1em;
@@ -173,7 +181,7 @@
 
 		code {
 			font-family: var(--mono);
-			font-size: 0.78rem;
+			font-size: 0.9rem;
 			background: #1a1a1a;
 			border: var(--border);
 			border-color: #333;
@@ -197,7 +205,7 @@
 		.spec:last-child { border-right: none; }
 
 		.spec-key {
-			font-size: 0.55rem;
+			font-size: 0.68rem;
 			text-transform: uppercase;
 			letter-spacing: 0.2em;
 			color: var(--gray);
@@ -205,7 +213,7 @@
 		}
 
 		.spec-val {
-			font-size: 0.8rem;
+			font-size: 0.95rem;
 		}
 
 		/* ── DOCS ────────────────────────────────────────────────────── */
@@ -377,7 +385,7 @@
 			justify-content: space-between;
 			align-items: center;
 			padding: 1.2rem 2rem;
-			font-size: 0.65rem;
+			font-size: 0.8rem;
 			text-transform: uppercase;
 			letter-spacing: 0.15em;
 			color: var(--gray);
@@ -509,25 +517,25 @@
 			<p class="cell-label">01 / First Steps</p>
 			<p class="cell-title">Install &amp;<br>configure</p>
 			<p class="cell-body">Download OScar and open it. The Update tab downloads cagent automatically — no terminal required. Set your API key in your shell environment and create a default agent config from Settings → General.</p>
-			<a href="https://docs.docker.com/ai/cagent/" target="_blank" rel="noopener" class="cell-link">cagent docs &nearr;</a>
+			<a href="first-steps.html" class="cell-link">read guide &nearr;</a>
 		</div>
 		<div class="cell">
 			<p class="cell-label">02 / Agents</p>
 			<p class="cell-title">Define your<br>agent</p>
 			<p class="cell-body">Agents are defined in a YAML config file. Specify the model, system prompt, and toolsets (shell, filesystem, MCP). Point OScar at the file via Settings → General → Config file.</p>
-			<a href="https://docs.docker.com/ai/cagent/" target="_blank" rel="noopener" class="cell-link">agent reference &nearr;</a>
+			<a href="agents.html" class="cell-link">read guide &nearr;</a>
 		</div>
 		<div class="cell">
 			<p class="cell-label">03 / Usage</p>
 			<p class="cell-title">Quick Entry &amp;<br>sessions</p>
 			<p class="cell-body">Press ⌥⌘O to open Quick Entry from anywhere on your Mac. Sessions persist across restarts and appear in the menu bar popover. OScar sessions are indexed in Spotlight — search for them with Cmd+Space.</p>
-			<a href="https://github.com/jalonsogo/oscar" target="_blank" rel="noopener" class="cell-link">OScar on GitHub &nearr;</a>
+			<a href="usage.html" class="cell-link">read guide &nearr;</a>
 		</div>
 		<div class="cell">
 			<p class="cell-label">04 / Sandboxes</p>
 			<p class="cell-title">Docker sandbox<br>isolation</p>
 			<p class="cell-body">Enable Docker Desktop sandbox mode in Settings → Docker to run cagent inside an isolated container. Shell and filesystem tool calls are scoped to the sandbox — safe for destructive or experimental operations.</p>
-			<a href="https://docs.docker.com/ai/sandboxes/" target="_blank" rel="noopener" class="cell-link">sandbox docs &nearr;</a>
+			<a href="sandboxes.html" class="cell-link">read guide &nearr;</a>
 		</div>
 	</div>
 </div>
@@ -919,6 +927,8 @@ async function initScene( container, userConfig = {} ) {
 	controls.minDistance = 0.3;
 	controls.maxDistance = 4;
 	controls.enableZoom = false;
+	// Disable drag/rotate on touch devices so page scroll isn't blocked
+	controls.enabled = window.matchMedia( '(pointer: fine)' ).matches;
 	controls.update();
 
 	const resizeObserver = new ResizeObserver( () => {

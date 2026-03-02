@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Agents — OScar Docs</title>
+	<style>
+		*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+		:root {
+			--black: #0a0a0a;
+			--white: #f5f5f0;
+			--gray:  #888;
+			--border: 1px solid currentColor;
+			--mono: 'Courier New', Courier, monospace;
+		}
+
+		html, body {
+			background: var(--black);
+			color: var(--white);
+			font-family: var(--mono);
+		}
+
+		nav {
+			display: flex;
+			align-items: center;
+			gap: 2rem;
+			padding: 0.9rem 2rem;
+			border-bottom: var(--border);
+			font-size: 0.82rem;
+			text-transform: uppercase;
+			letter-spacing: 0.15em;
+		}
+		nav a { color: var(--gray); text-decoration: none; transition: color 0.15s; }
+		nav a:hover { color: var(--white); }
+		nav a.active { color: var(--white); }
+		.nav-brand { color: var(--white); font-size: 1rem; letter-spacing: 0.05em; margin-right: auto; }
+
+		.page-header {
+			padding: 4rem 2rem 2.5rem;
+			border-bottom: var(--border);
+		}
+		.page-label {
+			font-size: 0.78rem;
+			text-transform: uppercase;
+			letter-spacing: 0.2em;
+			color: var(--gray);
+			margin-bottom: 0.8rem;
+		}
+		.page-title {
+			font-size: clamp(2rem, 6vw, 4rem);
+			font-weight: 400;
+			line-height: 1.05;
+			letter-spacing: -0.02em;
+		}
+		.page-lead {
+			margin-top: 1.2rem;
+			font-size: 1.05rem;
+			color: var(--gray);
+			max-width: 60ch;
+			line-height: 1.75;
+		}
+
+		.content {
+			max-width: 900px;
+			margin: 0 auto;
+			padding: 0 2rem 4rem;
+		}
+
+		.section {
+			border-bottom: var(--border);
+			border-color: #222;
+			padding: 2.5rem 0;
+		}
+		.section:last-child { border-bottom: none; }
+
+		.section-label {
+			font-size: 0.74rem;
+			text-transform: uppercase;
+			letter-spacing: 0.2em;
+			color: var(--gray);
+			margin-bottom: 1rem;
+		}
+
+		h2 {
+			font-size: 1.5rem;
+			font-weight: 400;
+			margin-bottom: 1rem;
+			line-height: 1.3;
+		}
+
+		p {
+			font-size: 1.05rem;
+			color: var(--gray);
+			line-height: 1.75;
+			margin-bottom: 0.8rem;
+		}
+		p:last-child { margin-bottom: 0; }
+
+		code, pre {
+			font-family: var(--mono);
+			font-size: 0.97rem;
+			background: #111;
+			border: 1px solid #222;
+			color: var(--white);
+			letter-spacing: 0.04em;
+		}
+		code { padding: 0.15rem 0.4rem; }
+		pre {
+			padding: 1rem 1.2rem;
+			overflow-x: auto;
+			margin: 1rem 0;
+			line-height: 1.6;
+		}
+
+		.table-wrap {
+			overflow-x: auto;
+			margin: 1rem 0;
+		}
+
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			font-size: 0.97rem;
+		}
+		th, td {
+			text-align: left;
+			padding: 0.6rem 0.9rem;
+			border: 1px solid #222;
+		}
+		th {
+			font-size: 0.74rem;
+			text-transform: uppercase;
+			letter-spacing: 0.15em;
+			color: var(--gray);
+			background: #111;
+		}
+		td { color: var(--gray); }
+		td:first-child { color: var(--white); }
+
+		.note {
+			margin-top: 1rem;
+			padding: 0.9rem 1.2rem;
+			background: #111;
+			border-left: 2px solid #333;
+			font-size: 0.97rem;
+			color: var(--gray);
+			line-height: 1.65;
+		}
+		.note strong { color: var(--white); }
+
+		a { color: var(--white); }
+		a:hover { color: var(--gray); }
+
+		footer {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 1.2rem 2rem;
+			border-top: var(--border);
+			font-size: 0.9rem;
+			color: var(--gray);
+		}
+		footer a { color: var(--gray); text-decoration: none; }
+		footer a:hover { color: var(--white); }
+	</style>
+</head>
+<body>
+
+<nav>
+	<a href="index.html" class="nav-brand">OScar</a>
+	<a href="first-steps.html">First Steps</a>
+	<a href="agents.html" class="active">Agents</a>
+	<a href="usage.html">Usage</a>
+	<a href="sandboxes.html">Sandboxes</a>
+</nav>
+
+<div class="page-header">
+	<div class="page-label">Documentation</div>
+	<h1 class="page-title">Agents</h1>
+	<p class="page-lead">An agent is a YAML file that defines which model OScar talks to and which tools it can use. You can have as many agents as you need — one per project, one per role.</p>
+</div>
+
+<div class="content">
+
+	<div class="section">
+		<div class="section-label">01 — Structure</div>
+		<h2>The agent.yaml format</h2>
+		<p>Every agent is a single YAML file. The only required field is <code>model</code>. Everything else is optional.</p>
+		<pre>model: claude-sonnet-4-5
+system: |
+  You are a senior software engineer.
+  Keep answers concise and prefer code over explanation.
+tools:
+  - shell
+  - filesystem
+  - mcp</pre>
+		<div class="note"><strong>Full reference:</strong> <a href="https://docs.docker.com/ai/cagent/">docs.docker.com/ai/cagent</a> covers every YAML key, provider config, and tool option.</div>
+	</div>
+
+	<div class="section">
+		<div class="section-label">02 — Models</div>
+		<h2>Choosing a model</h2>
+		<p>Set the <code>model</code> field to any model ID supported by your provider. OScar passes it directly to cagent without modification.</p>
+		<div class="table-wrap">
+			<table>
+				<thead>
+					<tr><th>Provider</th><th>Example model ID</th><th>Env var required</th></tr>
+				</thead>
+				<tbody>
+					<tr><td>Anthropic</td><td>claude-sonnet-4-5</td><td>ANTHROPIC_API_KEY</td></tr>
+					<tr><td>Anthropic</td><td>claude-opus-4-6</td><td>ANTHROPIC_API_KEY</td></tr>
+					<tr><td>OpenAI</td><td>gpt-4o</td><td>OPENAI_API_KEY</td></tr>
+					<tr><td>Google</td><td>gemini-2.0-flash</td><td>GOOGLE_API_KEY</td></tr>
+				</tbody>
+			</table>
+		</div>
+		<p>The model identifier must exactly match the provider's API name. Check your provider's docs for the current list.</p>
+	</div>
+
+	<div class="section">
+		<div class="section-label">03 — Tools</div>
+		<h2>Available tool sets</h2>
+		<p>Tools grant the agent capabilities beyond text generation. List only the tools your use case requires — fewer tools means a tighter, more predictable agent.</p>
+		<div class="table-wrap">
+			<table>
+				<thead>
+					<tr><th>Tool</th><th>What it can do</th></tr>
+				</thead>
+				<tbody>
+					<tr><td>shell</td><td>Execute arbitrary shell commands in the working directory</td></tr>
+					<tr><td>filesystem</td><td>Read, write, and list files. Scoped to the session working dir by default</td></tr>
+					<tr><td>docker</td><td>Build and run Docker containers, inspect images and volumes</td></tr>
+					<tr><td>mcp</td><td>Connect to any Model Context Protocol server (databases, APIs, custom tools)</td></tr>
+					<tr><td>browser</td><td>Fetch and parse web pages</td></tr>
+				</tbody>
+			</table>
+		</div>
+		<div class="note"><strong>Sandbox tip:</strong> Use the <code>-box</code> suffix variants in OScar's agent picker (Cagent-box, Claude-box…) to run tools inside a Docker sandbox. See the <a href="sandboxes.html">Sandboxes</a> page.</div>
+	</div>
+
+	<div class="section">
+		<div class="section-label">04 — System prompt</div>
+		<h2>Giving the agent a persona</h2>
+		<p>The optional <code>system</code> field is a freeform string sent as the system message before every conversation. Use it to set a role, constrain behaviour, or inject context.</p>
+		<pre>system: |
+  You are an expert in macOS development using Swift and SwiftUI.
+  Always prefer AppKit for window management.
+  When writing code, add only the minimal comments needed.</pre>
+		<p>Keep system prompts focused. Overly long prompts consume tokens on every request and can confuse the model.</p>
+	</div>
+
+	<div class="section">
+		<div class="section-label">05 — Multiple agents</div>
+		<h2>Organising several YAML files</h2>
+		<p>Store your agent YAMLs in a folder and point OScar at it in <strong>Settings → General → Agents Folder</strong>. OScar discovers all <code>.yaml</code> / <code>.yml</code> files and lists them in the Quick Entry picker.</p>
+		<pre>~/.config/oscar/agents/
+  coding.yaml        # shell + filesystem, claude-sonnet
+  research.yaml      # browser, gemini-flash
+  docker-ops.yaml    # docker + shell, gpt-4o</pre>
+		<p>Switch agents per conversation — the selection is remembered per session so each chat continues with the right agent.</p>
+	</div>
+
+</div>
+
+<footer>
+	<span>OScar Docs</span>
+	<a href="https://github.com/jalonsogo/oscar">GitHub ↗</a>
+</footer>
+
+</body>
+</html>
