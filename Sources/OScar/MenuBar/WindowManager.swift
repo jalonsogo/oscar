@@ -25,12 +25,16 @@ final class WindowManager {
         state.openSettingsAction = { [weak self] in
             self?.openSettings()
         }
+        state.openSessionsAction = { [weak self] in
+            self?.openSessionsWindow()
+        }
         NotificationCenter.default.addObserver(
             forName: .oscOpenQuickEntry,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.openQuickEntry() }
+        ) { [weak self] notification in
+            let agent = notification.userInfo?["agentName"] as? String ?? ""
+            Task { @MainActor [weak self] in self?.openQuickEntry(agentOverride: agent) }
         }
     }
 
@@ -93,6 +97,15 @@ final class WindowManager {
         window.makeKey()
     }
 
+    func openSessionsWindow() {
+        guard let state else { return }
+        guard let session = state.sessions.first else {
+            openQuickEntry()
+            return
+        }
+        openConversation(sessionId: session.id)
+    }
+
     func openSettings() {
         if let existing = settingsWindow {
             bringToFront(existing)
@@ -133,7 +146,7 @@ final class WindowManager {
         bringToFront(window)
     }
 
-    func openQuickEntry(prefillQuery: String = "") {
+    func openQuickEntry(prefillQuery: String = "", agentOverride: String = "") {
         guard let state else { return }
 
         // Close any existing quick-entry window before creating a new one.
@@ -147,14 +160,19 @@ final class WindowManager {
             defer: false
         )
 
-        let view = QuickEntryView(prefillQuery: prefillQuery)
+        let view = QuickEntryView(prefillQuery: prefillQuery, agentOverride: agentOverride)
             .environmentObject(state)
 
         // Same as makeWindow: we own this via quickEntryWindow, so prevent double-free.
         window.isReleasedWhenClosed = false
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        // Disable the system shadow — the SwiftUI view draws its own via .shadow().
+        // Without this, macOS adds a rectangular system shadow on top of the SwiftUI one,
+        // causing a double-shadow artifact that makes the rounded corners look dirty.
+        window.hasShadow = false
         window.contentViewController = NSHostingController(rootView: view)
         window.isMovableByWindowBackground = true
-        window.backgroundColor = .clear
         window.level = .floating
         window.center()
         window.orderFrontRegardless()
