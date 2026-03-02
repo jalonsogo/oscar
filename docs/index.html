@@ -208,6 +208,37 @@
 			font-size: 0.8rem;
 		}
 
+		/* ── DOCS ────────────────────────────────────────────────────── */
+		.docs-header {
+			padding: 0.8rem 2rem;
+			border-bottom: var(--border);
+		}
+
+		.docs-grid {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+		}
+
+		.docs-grid .cell {
+			border-bottom: var(--border);
+		}
+		.docs-grid .cell:nth-child(odd)  { border-right: var(--border); }
+		.docs-grid .cell:nth-last-child(-n+2) { border-bottom: none; }
+
+		.cell-link {
+			display: inline-block;
+			margin-top: 1.2rem;
+			font-size: 0.68rem;
+			text-transform: uppercase;
+			letter-spacing: 0.18em;
+			color: var(--white);
+			text-decoration: none;
+			border-bottom: 1px solid #444;
+			padding-bottom: 0.15rem;
+			transition: border-color 0.2s;
+		}
+		.cell-link:hover { border-color: var(--white); }
+
 		/* ── SCREENS MARQUEE ─────────────────────────────────────────── */
 	.screens-section {
 		border-bottom: var(--border);
@@ -371,7 +402,10 @@
 			.spec           { flex: 1 0 50%; border-bottom: var(--border); }
 			.hero-text      { grid-template-columns: 1fr; }
 			.hero-tagline   { text-align: left; }
-		.screens-track img { height: 200px; }
+			.screens-track img { height: 200px; }
+			.docs-grid      { grid-template-columns: 1fr; }
+			.docs-grid .cell { border-right: none; border-bottom: var(--border); }
+			.docs-grid .cell:last-child { border-bottom: none; }
 		}
 	</style>
 
@@ -461,6 +495,39 @@
 		<div class="install-step">
 			<span class="step-num">04</span>
 			<code>make install &amp;&amp; open /Applications/OScar.app</code>
+		</div>
+	</div>
+</div>
+
+<!-- ── DOCS ──────────────────────────────────────────────────────────── -->
+<div class="screens-section">
+	<div class="docs-header">
+		<p class="cell-label" style="margin:0">Docs</p>
+	</div>
+	<div class="docs-grid">
+		<div class="cell">
+			<p class="cell-label">01 / First Steps</p>
+			<p class="cell-title">Install &amp;<br>configure</p>
+			<p class="cell-body">Download OScar and open it. The Update tab downloads cagent automatically — no terminal required. Set your API key in your shell environment and create a default agent config from Settings → General.</p>
+			<a href="https://docs.docker.com/ai/cagent/" target="_blank" rel="noopener" class="cell-link">cagent docs &nearr;</a>
+		</div>
+		<div class="cell">
+			<p class="cell-label">02 / Agents</p>
+			<p class="cell-title">Define your<br>agent</p>
+			<p class="cell-body">Agents are defined in a YAML config file. Specify the model, system prompt, and toolsets (shell, filesystem, MCP). Point OScar at the file via Settings → General → Config file.</p>
+			<a href="https://docs.docker.com/ai/cagent/" target="_blank" rel="noopener" class="cell-link">agent reference &nearr;</a>
+		</div>
+		<div class="cell">
+			<p class="cell-label">03 / Usage</p>
+			<p class="cell-title">Quick Entry &amp;<br>sessions</p>
+			<p class="cell-body">Press ⌥⌘O to open Quick Entry from anywhere on your Mac. Sessions persist across restarts and appear in the menu bar popover. OScar sessions are indexed in Spotlight — search for them with Cmd+Space.</p>
+			<a href="https://github.com/jalonsogo/oscar" target="_blank" rel="noopener" class="cell-link">OScar on GitHub &nearr;</a>
+		</div>
+		<div class="cell">
+			<p class="cell-label">04 / Sandboxes</p>
+			<p class="cell-title">Docker sandbox<br>isolation</p>
+			<p class="cell-body">Enable Docker Desktop sandbox mode in Settings → Docker to run cagent inside an isolated container. Shell and filesystem tool calls are scoped to the sandbox — safe for destructive or experimental operations.</p>
+			<a href="https://docs.docker.com/ai/sandboxes/" target="_blank" rel="noopener" class="cell-link">sandbox docs &nearr;</a>
 		</div>
 	</div>
 </div>
