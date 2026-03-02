@@ -379,6 +379,59 @@
 	.modal-nav--prev  { left: 2rem; }
 	.modal-nav--next  { right: 2rem; }
 
+	/* ── HOTKEY BANNER ───────────────────────────────────────────── */
+	.hotkey-banner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 3rem 2rem;
+		border-bottom: var(--border);
+		gap: 2rem;
+	}
+
+	.hotkey-label {
+		font-size: 0.82rem;
+		text-transform: uppercase;
+		letter-spacing: 0.2em;
+		color: var(--gray);
+	}
+
+	.hotkey-keys {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: clamp(1.8rem, 5vw, 3.2rem);
+		letter-spacing: -0.01em;
+	}
+
+	.hotkey-keys kbd {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border: var(--border);
+		border-color: #444;
+		padding: 0.15em 0.4em;
+		font-family: var(--mono);
+		font-size: inherit;
+		font-weight: 400;
+		color: var(--white);
+		background: none;
+		line-height: 1;
+	}
+
+	.hotkey-sep {
+		color: var(--gray);
+		font-size: 1.2rem;
+	}
+
+	.hotkey-desc {
+		font-size: 1rem;
+		color: var(--gray);
+		max-width: 28ch;
+		line-height: 1.6;
+		text-align: right;
+	}
+
 	/* ── FOOTER ───────────────────────────────────────────────────── */
 		footer {
 			display: flex;
@@ -505,6 +558,19 @@
 			<code>make install &amp;&amp; open /Applications/OScar.app</code>
 		</div>
 	</div>
+</div>
+
+<!-- ── HOTKEY ────────────────────────────────────────────────────────── -->
+<div class="hotkey-banner">
+	<p class="hotkey-label">Global shortcut</p>
+	<div class="hotkey-keys">
+		<kbd>⌥</kbd>
+		<span class="hotkey-sep">+</span>
+		<kbd>⌘</kbd>
+		<span class="hotkey-sep">+</span>
+		<kbd>O</kbd>
+	</div>
+	<p class="hotkey-desc">Opens Quick Entry from anywhere on your Mac — no Dock, no switching apps.</p>
 </div>
 
 <!-- ── DOCS ──────────────────────────────────────────────────────────── -->
