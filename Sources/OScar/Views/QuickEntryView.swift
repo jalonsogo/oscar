@@ -17,6 +17,7 @@ struct QuickEntryView: View {
     @FocusState private var focused: Bool
 
     var prefillQuery: String = ""
+    var agentOverride: String = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -98,6 +99,7 @@ struct QuickEntryView: View {
         .onAppear {
             focused = true
             if !prefillQuery.isEmpty { query = prefillQuery }
+            if !agentOverride.isEmpty { selectedAgent = agentOverride }
         }
     }
 
@@ -312,6 +314,7 @@ private struct AgentPickerPopover: View {
                 }
                 .padding(.vertical, 4)
             }
+            .scrollIndicators(.hidden)
             .frame(maxHeight: 220)
         }
         .frame(width: 210)
