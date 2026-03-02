@@ -726,9 +726,6 @@ struct UpdateTab: View {
     @ObservedObject var downloader: CagentDownloader
     let onDownload: () -> Void
 
-    @AppStorage("cagentBinaryPath") private var cagentBinaryPath: String = ""
-    @State private var showBinaryPicker = false
-
     var body: some View {
         Form {
             Section("cagent Binary") {
@@ -739,34 +736,9 @@ struct UpdateTab: View {
                     Button(buttonLabel, action: onDownload)
                         .disabled(downloader.state.isInProgress)
                 }
-
-                LabeledContent("Override path") {
-                    HStack {
-                        TextField("Auto-detected", text: $cagentBinaryPath)
-                            .multilineTextAlignment(.trailing)
-                        Button("Choose\u{2026}") { showBinaryPicker = true }
-                        if !cagentBinaryPath.isEmpty {
-                            Button("Clear") { cagentBinaryPath = "" }
-                                .foregroundStyle(Color.secondary)
-                        }
-                    }
-                }
-                .help("Leave empty to use the auto-downloaded or system cagent binary")
-            }
-
-            Section("Links") {
-                HStack {
-                    Button("cagent on GitHub") {
-                        NSWorkspace.shared.open(URL(string: "https://github.com/docker/cagent")!)
-                    }
-                    Spacer()
-                }
             }
         }
         .formStyle(.grouped)
-        .fileImporter(isPresented: $showBinaryPicker, allowedContentTypes: [.unixExecutable, .data]) { result in
-            if case .success(let url) = result { cagentBinaryPath = url.path }
-        }
     }
 
     @ViewBuilder
@@ -827,14 +799,8 @@ private struct AboutTab: View {
             }
 
             Section("Links") {
-                HStack {
-                    Button("OScar on GitHub") {
-                        NSWorkspace.shared.open(URL(string: "https://github.com/jalonsogo/oscar")!)
-                    }
-                    Spacer()
-                    Button("cagent on GitHub") {
-                        NSWorkspace.shared.open(URL(string: "https://github.com/docker/cagent")!)
-                    }
+                Button("OScar on GitHub") {
+                    NSWorkspace.shared.open(URL(string: "https://github.com/jalonsogo/oscar")!)
                 }
             }
         }
