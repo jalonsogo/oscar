@@ -84,10 +84,13 @@ struct SettingsView: View {
 private struct GeneralTab: View {
     @EnvironmentObject var state: AppState
 
-    @AppStorage("agentConfigPath") private var agentConfigPath: String = ""
-    @AppStorage("agentName")       private var agentName: String = "agent"
+    @AppStorage("agentConfigPath")    private var agentConfigPath: String = ""
+    @AppStorage("agentName")          private var agentName: String = "agent"
     @AppStorage("sessionsFolderPath") private var sessionsFolderPath: String = ""
-    @AppStorage("serverPort")      private var serverPort: Int = 8080
+    @AppStorage("serverPort")         private var serverPort: Int = 8080
+    @AppStorage("appearance")         private var appearance: String = "system"
+    @AppStorage("hotkeyKeyCode")      private var hotkeyKeyCode:   Int = HotkeyManager.defaultKeyCode
+    @AppStorage("hotkeyModifiers")    private var hotkeyModifiers: Int = HotkeyManager.defaultModifiers
 
     @State private var showConfigPicker = false
 
@@ -160,6 +163,47 @@ private struct GeneralTab: View {
                     }
                     Spacer()
                 }
+            }
+
+            Section("Shortcuts") {
+                LabeledContent("Quick Entry") {
+                    HStack(spacing: 8) {
+                        HotkeyRecorderField(keyCode: $hotkeyKeyCode, modifiers: $hotkeyModifiers)
+                            .frame(width: 100, height: 26)
+                            .onChange(of: hotkeyKeyCode) { _ in
+                                HotkeyManager.shared.register(
+                                    keyCode: UInt32(hotkeyKeyCode),
+                                    modifiers: UInt32(hotkeyModifiers)
+                                )
+                            }
+                            .onChange(of: hotkeyModifiers) { _ in
+                                HotkeyManager.shared.register(
+                                    keyCode: UInt32(hotkeyKeyCode),
+                                    modifiers: UInt32(hotkeyModifiers)
+                                )
+                            }
+                        Button("Reset") {
+                            hotkeyKeyCode   = HotkeyManager.defaultKeyCode
+                            hotkeyModifiers = HotkeyManager.defaultModifiers
+                            HotkeyManager.shared.register(
+                                keyCode:   UInt32(HotkeyManager.defaultKeyCode),
+                                modifiers: UInt32(HotkeyManager.defaultModifiers)
+                            )
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                }
+                .help("Global shortcut to open the Quick Entry window. Click the badge to record a new shortcut.")
+            }
+
+            Section("Appearance") {
+                Picker("Theme", selection: $appearance) {
+                    Text("System").tag("system")
+                    Text("Light").tag("light")
+                    Text("Dark").tag("dark")
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: appearance) { _ in state.applyAppearance() }
             }
         }
         .formStyle(.grouped)

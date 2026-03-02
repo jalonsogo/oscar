@@ -16,7 +16,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSLog("[OScar] applicationDidFinishLaunching")
+
+        // Seed default values so UserDefaults.integer(forKey:) returns them before
+        // the user has visited Settings (register(defaults:) never overwrites stored values).
+        UserDefaults.standard.register(defaults: [
+            "hotkeyKeyCode":   HotkeyManager.defaultKeyCode,
+            "hotkeyModifiers": HotkeyManager.defaultModifiers
+        ])
+
         state = AppState()
+        state.applyAppearance()
         windowManager = WindowManager()
         menuBarController = MenuBarController()
 
@@ -24,6 +33,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSLog("[OScar] calling menuBarController.setup")
         menuBarController.setup(state: state, windowManager: windowManager)
         NSLog("[OScar] setup complete")
+
+        // Register the global hotkey (⌥⌘O by default, configurable in Settings).
+        HotkeyManager.shared.registerFromDefaults()
 
         Task { @MainActor in
             await state.start()

@@ -11,6 +11,9 @@ let package = Package(
             exclude: [
                 // Info.plist is copied into the .app bundle by `make bundle` — not a SPM resource
                 "Resources/Info.plist"
+            ],
+            linkerSettings: [
+                .linkedFramework("Carbon")
             ]
         )
     ]
