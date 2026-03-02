@@ -97,9 +97,12 @@ private struct GeneralTab: View {
     var body: some View {
         Form {
             Section("Agent") {
-                LabeledContent("Agent name") {
+                HStack {
+                    Text("Agent name")
+                    Spacer()
                     TextField("agent", text: $agentName)
                         .multilineTextAlignment(.trailing)
+                        .frame(width: 160)
                 }
                 .help("Run mode passed to /api/sessions/{id}/agent/{name}")
 
@@ -133,9 +136,12 @@ private struct GeneralTab: View {
             }
 
             Section("Server") {
-                LabeledContent("Port") {
-                    TextField("8080", value: $serverPort, format: .number)
+                HStack {
+                    Text("Port")
+                    Spacer()
+                    TextField("8080", value: $serverPort, format: .number.grouping(.never))
                         .multilineTextAlignment(.trailing)
+                        .frame(width: 80)
                 }
 
                 HStack(spacing: 6) {
@@ -417,9 +423,12 @@ private struct DockerAgentTab: View {
             }
 
             Section("Sandbox Agent Suffix") {
-                LabeledContent("Suffix") {
+                HStack {
+                    Text("Suffix")
+                    Spacer()
                     TextField("-box", text: $boxAgentSuffix)
                         .multilineTextAlignment(.trailing)
+                        .frame(width: 120)
                 }
                 .help("When Sandbox mode is enabled in Quick Entry, this suffix is appended to the agent name (e.g. claude → claude-box).")
             }

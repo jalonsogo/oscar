@@ -92,10 +92,7 @@ struct QuickEntryView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
         }
-        .frame(width: 560)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .shadow(color: Color.black.opacity(0.25), radius: 20, y: 8)
+        .frame(maxWidth: .infinity)
         .onAppear {
             focused = true
             if !prefillQuery.isEmpty { query = prefillQuery }

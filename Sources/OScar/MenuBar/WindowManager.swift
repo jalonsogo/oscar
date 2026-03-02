@@ -163,17 +163,39 @@ final class WindowManager {
         let view = QuickEntryView(prefillQuery: prefillQuery, agentOverride: agentOverride)
             .environmentObject(state)
 
-        // Same as makeWindow: we own this via quickEntryWindow, so prevent double-free.
+        // We own this via quickEntryWindow, so prevent double-free.
         window.isReleasedWhenClosed = false
         window.isOpaque = false
         window.backgroundColor = .clear
-        // Disable the system shadow — the SwiftUI view draws its own via .shadow().
-        // Without this, macOS adds a rectangular system shadow on top of the SwiftUI one,
-        // causing a double-shadow artifact that makes the rounded corners look dirty.
-        window.hasShadow = false
-        window.contentViewController = NSHostingController(rootView: view)
+        // hasShadow = true lets macOS derive the shadow from the visual effect view's
+        // rounded opaque pixels — no SwiftUI shadow() needed, no double-shadow artifact.
+        window.hasShadow = true
         window.isMovableByWindowBackground = true
         window.level = .floating
+
+        // NSVisualEffectView with .behindWindow blending is required for real translucency.
+        // SwiftUI's .background(.regularMaterial) uses .withinWindow blending on nested
+        // views, which samples the (empty) window backing — showing only flat gray.
+        let effectView = NSVisualEffectView()
+        effectView.material = .sidebar
+        effectView.blendingMode = .behindWindow
+        effectView.state = .active
+        effectView.wantsLayer = true
+        effectView.layer?.cornerRadius = 16
+        effectView.layer?.masksToBounds = true
+        window.contentView = effectView
+
+        let hc = NSHostingController(rootView: view)
+        hc.view.translatesAutoresizingMaskIntoConstraints = false
+        hc.view.wantsLayer = true
+        hc.view.layer?.backgroundColor = .clear
+        effectView.addSubview(hc.view)
+        NSLayoutConstraint.activate([
+            hc.view.leadingAnchor .constraint(equalTo: effectView.leadingAnchor),
+            hc.view.trailingAnchor.constraint(equalTo: effectView.trailingAnchor),
+            hc.view.topAnchor     .constraint(equalTo: effectView.topAnchor),
+            hc.view.bottomAnchor  .constraint(equalTo: effectView.bottomAnchor),
+        ])
         window.center()
         window.orderFrontRegardless()
         window.makeKey()
