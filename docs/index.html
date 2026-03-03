@@ -203,6 +203,30 @@
 			letter-spacing: 0.04em;
 		}
 
+		.download-btn {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.7rem;
+			margin-top: 2.5rem;
+			padding: 1rem 1.8rem;
+			background: var(--white);
+			color: var(--black);
+			font-family: var(--mono);
+			font-size: 1rem;
+			text-transform: uppercase;
+			letter-spacing: 0.15em;
+			text-decoration: none;
+			border: none;
+			transition: background 0.15s, color 0.15s;
+		}
+		.download-btn:hover {
+			background: #ccc;
+		}
+		.download-btn-arrow {
+			font-size: 1.2rem;
+			line-height: 1;
+		}
+
 		/* ── SPECS STRIP ──────────────────────────────────────────────── */
 		.specs-strip {
 			display: flex;
@@ -555,6 +579,10 @@
 	<div class="install-left">
 		<p class="install-heading">Get<br>running<br>in four<br>steps.</p>
 		<p class="cell-body" style="margin-top:2rem">Requires macOS 13+ and cagent v1.23+.<br>Any LLM provider supported by cagent works.</p>
+		<a href="https://github.com/jalonsogo/oscar/releases" class="download-btn">
+			Download OScar
+			<span class="download-btn-arrow">↓</span>
+		</a>
 	</div>
 	<div class="install-right">
 		<div class="install-step">
