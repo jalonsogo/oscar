@@ -66,6 +66,18 @@
 			mix-blend-mode: difference;
 		}
 
+		.alpha-badge {
+			display: inline-block;
+			font-size: 0.72rem;
+			text-transform: uppercase;
+			letter-spacing: 0.2em;
+			color: var(--white);
+			border: 1px solid rgba(255,255,255,0.35);
+			padding: 0.25em 0.7em;
+			margin-top: 1.2rem;
+			mix-blend-mode: difference;
+		}
+
 		.hero-tagline {
 			font-size: clamp(0.65rem, 1.2vw, 0.85rem);
 			text-transform: uppercase;
@@ -488,7 +500,10 @@
 	<div id="scene"></div>
 
 	<div class="hero-text">
-		<h1>OS<br>car</h1>
+		<div>
+			<h1>OS<br>car</h1>
+			<span class="alpha-badge">Alpha</span>
+		</div>
 		<p class="hero-tagline">Operating System<br>for Cooperative<br>Agent Runtime</p>
 	</div>
 </section>
